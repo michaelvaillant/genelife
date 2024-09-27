@@ -150,6 +150,33 @@
         this.patterns = []; // Will store all patterns
         this.genomeTypes = {}; // Will store genome definitions
 
+        // Pre-recorded worlds
+        const worlds = [
+        {
+            name: "World 1",
+            grid: [
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+        }
+            // Ajoutez ici de nouveaux mondes à mesure qu'ils sont créés
+      ];
+    
+
         // Initialize the game
         this.initGame();
         this.bindEvents();
@@ -661,6 +688,10 @@
       document.getElementById('seed').addEventListener('change', (event) => {this.changeSeed(event); event.target.blur(); });
       document.getElementById('board').addEventListener('change', (event) => {this.resizeBoard(event); event.target.blur(); });
       document.addEventListener('keydown', (event) => this.handleKeyDown(event));
+
+      // Event listeners for the reset modal
+      this.applyResetButton.addEventListener('click', (event) => { this.applyReset(); event.target.blur(); });
+      this.cancelResetButton.addEventListener('click', (event) => { this.closeResetModal(); event.target.blur(); });
 
       // Mouse events for cell selection
       this.gameCanvas.addEventListener('mousemove', (event) => this.handleMouseMove(event));
@@ -1454,6 +1485,75 @@
         this.isDragging = true;
       });
     }
+
+    openResetModal() {
+      // Mettre à jour l'affichage du seed actuel
+      this.currentSeedOption.textContent = this.seed;
+
+      // Sélectionner l'option appropriée
+      if (!isNaN(this.seed) && this.seed !== "") {
+        document.getElementById('currentOption').checked = true;
+      } else {
+        document.getElementById('randomOption').checked = true;
+      }
+
+      // Afficher la modale
+      this.resetModal.style.display = 'flex';
+    }
+
+    closeResetModal() {
+      // Cacher la modale
+      this.resetModal.style.display = 'none';
+    }
+
+    applyReset() {
+      const selectedOption = this.resetForm.querySelector('input[name="seedOption"]:checked').value;
+
+      if (selectedOption === 'random') {
+        // Seed aléatoire
+        this.seed = Math.floor(Math.random() * 100000);
+        document.getElementById('seed').value = this.seed;
+        this.initGame();
+      } else if (selectedOption === 'current') {
+        // Utiliser le seed actuel
+        this.seed = parseInt(this.currentSeedOption.textContent, 10);
+        document.getElementById('seed').value = this.seed;
+        this.initGame();
+      } else {
+        // Charger un monde préenregistré
+        const worldId = parseInt(selectedOption, 10);
+        const world = this.worlds[worldId];
+        if (world) {
+          this.seed = world.name;
+          document.getElementById('seed').value = this.seed;
+          this.initializeGridWithWorld(world.grid);
+          this.drawGrid(this.currentGrid);
+        }
+      }
+
+      this.closeResetModal();
+    }
+
+    initializeGridWithWorld(grid) {
+      this.currentGrid = this.createGrid(this.gridSize);
+      this.nextGrid = this.createGrid(this.gridSize);
+
+      // Centrer la grille du monde dans la grille actuelle
+      const offsetY = Math.floor((this.gridSize - grid.length) / 2);
+      const offsetX = Math.floor((this.gridSize - grid[0].length) / 2);
+
+      for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[0].length; x++) {
+          const newY = y + offsetY;
+          const newX = x + offsetX;
+
+          if (newY >= 0 && newY < this.gridSize && newX >= 0 && newX < this.gridSize) {
+            this.currentGrid[newY][newX] = JSON.parse(JSON.stringify(grid[y][x]));
+          }
+        }
+      }
+    }
+
   }
 
   // Initialize the game
