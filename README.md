@@ -15,6 +15,15 @@ Unlike traditional implementations where the grid determines the rules of reprod
 -	Dynamic Graphs: Displays population and energy evolution over time.
 -	User Controls: Manage the simulation via buttons and interactive selectors.
 
+*Example of the configuration for seed 28727 not so far from the beginning*
+![src/Configurations/28727.png](https://github.com/michaelvaillant/genelife/blob/master/src/Configurations/28727.png)
+*after 1167 turns*
+![src/Configurations/28727.png](https://github.com/michaelvaillant/genelife/blob/master/src/Configurations/28727%201187.png)
+- Moving cells are in orange
+- Recent cells are colored in red, and with the age the became darker
+
+Initial cells in this simulation is made of a mix between classical game of life cells (like B3/S23 but not only) and more evolved cells with movement rules. I also added some "pac man" cells (yellow) for the fun. So many interesting experiments to do here.
+
 *Installation*
 No installation required—simply open the index.html file in a JavaScript-compatible browser.
 
@@ -48,7 +57,7 @@ Cells which does not have "Movement Rules" are 100% compatible with the way the 
 -	Seedrandom.js: Handles random seed generation.
 
 *Future Improvements*
-- Some UX bugs to correct. Actually I need to correct the way the temporary movements are consumed. It was my latest change, and did not take the time to correct. 
+- Some UX bugs to correct. Actually I need to correct the way the temporary movements are consumed. It was my latest change, and did not have the time to correct. 
 -	Many ideas to suggest to play with. Like for cells, a way to recognize the cells with similar genetic code and accept reproduction with not so different cells. Add conditional blocs (if) in the genetic code (the genetic code is a stack). 
 -	Introducing new genes for complex behaviors.
 -	Performance optimization for larger grids.
