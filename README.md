@@ -34,6 +34,7 @@ No installation required—simply open the index.html file in a JavaScript-compa
 -	Seedrandom.js: Handles random seed generation.
 
 *Future Improvements*
+- Some bugs to correct (way the temporary movements are injected in the pipeline) 
 -	Adding a multiplayer mode.
 -	Introducing new genes for complex behaviors.
 -	Performance optimization for larger grids.
