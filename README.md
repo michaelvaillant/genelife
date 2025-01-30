@@ -6,6 +6,8 @@ This project is an advanced implementation of Conway's "Game of Life," enhanced 
 
 Unlike traditional implementations where the grid determines the rules of reproduction and survival, here, the rules are embedded within the cells themselves. This fundamental shift enables genetic mutations, making the simulation much more flexible and adaptable. It includes an interactive visualization using HTML5 Canvas and offers a simulation system with multiple user controls.
 
+Try it: https://www.u-sphere.com/data/life/life.html
+
 *Features*
 -	Game of Life Simulation: Based on Conway's classic rules with evolutionary elements.
 -	Integrated Genome: Each cell can have genetic characteristics defining its survival, reproduction, and movement.
@@ -34,7 +36,7 @@ No installation required—simply open the index.html file in a JavaScript-compa
 1.	Start the simulation: It runs automatically with default settings.
 2.	Change grid size: Select a size in the "Board" dropdown menu.
 3.	Modify speed: Adjust the value in "Wait" to speed up or slow down the simulation.
-4.	Change seed: Enter a value in "Seed" to generate different configurations (+/-)
+4.	Change seed: Enter a value in "Seed" to generate different configurations. Keys: +, - or SPACE (to freeze)
 5.	Reset the simulation: Click "Reset" to choose a new seed or a predefined world.
 6.	Observe cells: Click on a cell to display its genetic characteristics and state.
 7.	Select an area: Drag the mouse to analyze a specific region.
@@ -59,7 +61,7 @@ Cells which does not have "Movement Rules" are 100% compatible with the way the 
 -	Seedrandom.js: Handles random seed generation.
 
 *Future Improvements*
-- Some UX bugs to correct. Actually I need to correct the way the temporary movements are consumed. It was my latest change, and did not have the time to correct. 
+- Some UX bugs to correct . Actually I need to correct the way the temporary movements are consumed. It was my latest change, and did not have the time to correct. 
 -	Many ideas to suggest to play with. Like for cells, a way to recognize the cells with similar genetic code and accept reproduction with not so different cells. Add conditional blocs (if) in the genetic code (the genetic code is a stack). 
 -	Introducing new genes for complex behaviors.
 -	Performance optimization for larger grids.
