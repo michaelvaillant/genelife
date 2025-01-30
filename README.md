@@ -10,7 +10,7 @@ Unlike traditional implementations where the grid determines the rules of reprod
 -	Game of Life Simulation: Based on Conway's classic rules with evolutionary elements.
 -	Integrated Genome: Each cell can have genetic characteristics defining its survival, reproduction, and movement.
 -	Interactive Visualization: Uses multiple canvases to display the simulation grid and statistical graphs.
--	You can Display the content of the genone interactively
+-	You can Display the content of the genone interactively by clicking on any cell (not shown here!)
 -	You can also Interactively save "creatures" from the grid, and drag & drop them at any time. You've a list of pre-recorded creatures.
 -	Customization: Allows modifying the grid size, simulation speed, and using a random seed.
 -	Obstacle Management and Presets: Adds cross-shaped obstacles and predefined worlds.
