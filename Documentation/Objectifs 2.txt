@@ -1,0 +1,39 @@
+Objectifs de victoire:
+	- Atteindre une certaine population
+	- Passer derrière des barrières
+	- Créer des générateurs
+	- Manger des ennemis (identification des populations)
+	- Faire survivre une population
+	- Elements sonores qui attirent les créatures
+
+Deux joueurs. 
+
+30 secondes chacun pour placer ses créatures (cout).
+
+Terrains avec des zones infranchissables
+Terrains avec des mines
+Terrains avec des pièces d'or et des récompenses: choisir une créature sur la carte à l'issue de la partie au moment où le coffre s'ouvre. 
+Carré : bougent pas. 
+Arraignées : bougent : nombre de pattes vitesse
+Losange : tirent
+
+
+
+Récompenses:
+
+- Argent pour construire / modifier les cellules - du jeu (-cher), de créatures (+cher)
+- Argent récolté sur le sol - fonction collecte
+- Musique 
+- Niveaux de + en + complexes
+- Obtention / fabrication d'une librairie de créatures
+
+Challenges:
+
+- Temps (tours) limités (global) ou associé aux récompenses
+- Bombes
+- Combat entre joueurs
+- une structure qui survit plus de x tours est sauvegardée
+
+Afficher l'énergie ou Afficher l'age
+Pac Man qui se déplacent et mangent l'énergie
+

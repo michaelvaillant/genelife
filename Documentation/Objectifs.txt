@@ -1,0 +1,28 @@
+BUG : il y a des duplications de cellules alors que ce n'est parfois pas possible
+BUG: Sundefined
+
+
+1- Nettoyer le code
+2- Ajouter un nommage par défaut aux objets en glisser-déposer
+3- Créer un en-tête : 
+	Seed [ ] Tour [ ] Vitesse [ ]
+4- Vérifier la reproduction autorisée:
+	- Il faut que les cellules voisines aient le même B pour pouvoir se reproduire entre elles.
+
+5- L'énergie max limitée par le nombre de bases
+
+6- Moins il y a d'instructions, plus il est difficile à détruire
+7- Briques de mutation (Rayon => Aléatoires, Virus => Dirigées)
+
+6- Une instruction suivre les cellules de même type ou du type y
+
+7- "Nom ou signature" basée sur le code génétique
+
+8- Définir une "enclave" ou "cellule" dans laquelle les interactions sont protégées
+	-> Pas besoin. Définir un gêne "colle" dont le role est de se coller à la cellule voisine (direction) qui peut servir de "peau" et d'enclave
+
+Les Pac Man : Génèrent plus d'énergie à partir de leur consomation individuelle (jaunes, ronds)
+Les Algues : qui se développent 
+
+
+- il faut une interaction faible entre deux groupes de cellules pour provoquer des choses interessantes

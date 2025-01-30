@@ -6,1556 +6,1589 @@
 
 </head>
 <body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
-<link rel="stylesheet" href="https://www.u-sphere.com/data/life/life.css">
-
-<div id="controls">
-    Seed<input id="seed" type="text" value="">    
-    Turn<span id="round">0</span>
-    Wait<input id="speed" type="text" value="">  
-
-    Board<select id="board"> 
-        <option value="16">16</option>
-        <option value="32">32</option>
-        <option value="64" default>64</option>
-        <option value="128">128</option>
-        <option value="256">256</option>
-    </select>
-    <div class="actions">
-        <button id="clear" >Clear</button>
-        <button id="Reset" >Reset</button>
-    </div>
-</div>
-
-<div style="position: relative;">
-
-    <canvas id="gameCanvas" width="1024" height="1024"></canvas>
-    <canvas id="overlayCanvas" width="1024" height="1024" ></canvas>
-    <div id="infoDiv">
-        <div id="CellInfo">
-            <div class="CellInfoTitle">🚩 Emplacement</div>
-            <div id="CellInfoContent"></div>
-            <div id="cellProxy"></div> 
-        </div>
-
-            
-        <div id="genomeInfo" style="display: none;">
-            <div class="genomeInfoTitle">🧬 Génome</div>
-            <div class="genomeInfoContent">
-
-                <div class="genome-section" id="survivalSection">
-                    <div class="genome-title">Survie</div>
-                    <div class="horizontal-gene" id="survivalColumn"></div>
-                </div>
-
-                <div class="genome-section" id="birthSection">
-                    <div class="genome-title">Naissance</div>
-                    <div class="horizontal-gene" id="birthColumn"></div>
-                </div>
-
-                <div class="genome-section" id="moveSection">
-                    <div class="genome-title">Mouvement</div>
-                    <div class="vertical-gene" id="moveColumn"></div>
-                </div>
-            </div>
-        </div>
-        <button id="copyButton" style="display: none; margin-top: 10px;">Copier</button>
-    </div>			
-</div>	
-
-<!-- Fenêtre modale -->
-<div id="resetModal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <h2>World Selection</h2>
-      <form id="resetForm">
-        <label><input type="radio" id="randomOption" name="seedOption" value="random"> Random seed</label>
-        <label><input type="radio" id="currentOption" name="seedOption" value="current"> Seed <span id="currentSeedOption"></span></label>
-        <label><input type="radio" id="world_0" name="seedOption" value="0"> World 1</label>
-        <!-- Ajoutez ici plus d'options pour les autres mondes -->
-      </form>
-      <button id="cancelReset"> ❌ Cancel</button>
-      <button id="applyReset">✔️ Reset</button>
-    </div>
-</div>
-
-<canvas id="graphCanvas" width="1024" height="200"></canvas>
-<div id="copiedAreaDiv" >
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
-<script>
-  class GameOfLife {
-    constructor(config = {}) {
-        // Canvas elements
-        this.gameCanvas = document.getElementById('gameCanvas');
-        this.ctx = this.gameCanvas.getContext('2d');
-        this.overlayCanvas = document.getElementById('overlayCanvas');
-        this.overlayCtx = this.overlayCanvas.getContext('2d');
-        this.graphCanvas = document.getElementById('graphCanvas');
-        this.graphCtx = this.graphCanvas.getContext('2d');
-
-        // Références aux éléments de la modale
-        this.resetModal = document.getElementById('resetModal');
-        this.resetForm = document.getElementById('resetForm');
-        this.applyResetButton = document.getElementById('applyReset');
-        this.cancelResetButton = document.getElementById('cancelReset');
-        this.currentSeedOption = document.getElementById('currentSeedOption');
-
-        // Configuration parameters
-        this.gridSize = config.gridSize || 64;
-        this.cellSize = this.gameCanvas.width / this.gridSize;
-        this.speed = config.speed || 100;
-        this.seed = config.seed || Math.floor(Math.random() * 100000);
-        this.isPaused = false;
-        this.generationCount = 0;
-        this.maxGenerations = 500;
-        this.populationCounts = [];
-        this.energyCounts = [];
-
-        // Grids for the game
-        this.currentGrid = this.createGrid(this.gridSize);
-        this.nextGrid = this.createGrid(this.gridSize);
-
-        // Events and controls
-        this.hoveredCell = null;
-        this.selectedCell = null;
-        this.isAreaSelected = false;
-        this.isDragging = false;
-        this.draggedArea = null;
-        this.isSelecting = false;
-        this.startX = null;
-        this.startY = null;
-        this.endX = null;
-        this.endY = null;
-        this.dashOffset = 0;
-        this.isAnimationRunning = false;
-        this.copiedAreas = [];
-        this.idAnim = null;
-
-        // Selected area
-        this.selectedArea = null;
-
-        // Reference to HTML elements
-        this.infoDiv = document.getElementById('infoDiv');
-        this.CellInfoContent = document.getElementById('CellInfoContent');
-        this.genomeInfo = document.getElementById('genomeInfo');
-        this.survivalColumn = document.getElementById('survivalColumn');
-        this.birthColumn = document.getElementById('birthColumn');
-        this.moveColumn = document.getElementById('moveColumn');
-        this.cellProxy = document.getElementById('cellProxy');
-        this.copyButton = document.getElementById('copyButton');
-        this.copiedAreaDiv = document.getElementById('copiedAreaDiv');
-
-        // Patterns and genomes
-        this.patterns = []; // Will store all patterns
-        this.genomeTypes = {}; // Will store genome definitions
-
-        // Pre-recorded worlds
-        const worlds = [
-        {
-            name: "World 1",
-            grid: [
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            ]
-        }
-            // Ajoutez ici de nouveaux mondes à mesure qu'ils sont créés
-      ];
-    
-
-        // Initialize the game
-        this.initGame();
-        this.bindEvents();
-    }
-
-    // Initialize the game with the current seed
-    initGame() {
-        Math.seedrandom(this.seed);
-        this.updateControls();
-        this.initializeGridWithObstacles();
-        this.drawGrid(this.currentGrid);
-        this.generationCount = 0;
-        setTimeout(() => this.update(), this.speed);
-        // Define genomes and patterns
-        this.defineGenomes();
-        this.definePatterns();
-        // Preload patterns
-        this.preloadPatterns();
-    }
-
-    // Update control elements
-    updateControls() {
-        document.getElementById('round').innerText = '0';
-        document.getElementById('seed').value = this.seed;
-        document.getElementById('board').value = this.gridSize;
-        document.getElementById('speed').value = this.speed;
-    }
-
-    // Create an empty grid
-    createGrid(size) {
-      const grid = new Array(size);
-      for (let y = 0; y < size; y++) {
-        grid[y] = new Array(size);
-        for (let x = 0; x < size; x++) {
-          grid[y][x] = this.createEmptyCell();
-        }
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+  <link rel="stylesheet" href="https://www.u-sphere.com/data/life/life.css">
+  
+  <div id="controls">
+      Seed<input id="seed" type="text" value="">    
+      Turn<span id="round">70</span>
+      Wait<input id="speed" type="text" value="">  
+  
+      Board<select id="board"> 
+          <option value="16">16</option>
+          <option value="32">32</option>
+          <option value="64" default="">64</option>
+          <option value="128">128</option>
+          <option value="256">256</option>
+      </select>
+      <div class="actions">
+          <button id="clear">Clear</button>
+          <button id="Reset">Reset</button>
+      </div>
+  </div>
+  
+  <div style="position: relative;">
+  
+      <canvas id="gameCanvas" width="1024" height="1024"></canvas>
+      <canvas id="overlayCanvas" width="1024" height="1024"></canvas>
+      <div id="infoDiv" style="display: none;">
+          <div id="CellInfo">
+              <div class="CellInfoTitle">🚩 Location</div>
+              <div id="CellInfoContent"></div>
+              <div id="cellProxy" style="display: none;"></div> 
+          </div>
+  
+              
+          <div id="genomeInfo" style="display: block;">
+              <div class="genomeInfoTitle">🧬 Genome</div>
+              <div class="genomeInfoContent">
+  
+                  <div class="genome-section" id="survivalSection">
+                      <div class="genome-title">Survival</div>
+                      <div class="horizontal-gene" id="survivalColumn"></div>
+                  </div>
+  
+                  <div class="genome-section" id="birthSection">
+                      <div class="genome-title">Birth</div>
+                      <div class="horizontal-gene" id="birthColumn"></div>
+                  </div>
+  
+                  <div class="genome-section" id="moveSection" style="display: none;">
+                      <div class="genome-title">Movement</div>
+                      <div class="vertical-gene" id="moveColumn"></div>
+                  </div>
+              </div>
+          </div>
+          <button id="copyButton" style="display: block; margin-top: 10px;">Copy</button>
+      </div>			
+  </div>	
+  
+  <!-- Fenêtre modale -->
+  <div id="resetModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h2>World Selection</h2>
+        <form id="resetForm">
+          <label><input type="radio" id="randomOption" name="seedOption" value="random"> Random seed</label>
+          <label><input type="radio" id="currentOption" name="seedOption" value="current"> Seed <span id="currentSeedOption"></span></label>
+          <label><input type="radio" id="world_0" name="seedOption" value="0"> World 1</label>
+          <!-- Ajoutez ici plus d'options pour les autres mondes -->
+        </form>
+        <button id="cancelReset"> ❌ Cancel</button>
+        <button id="applyReset">✔️ Reset</button>
+      </div>
+  </div>
+  
+  <canvas id="graphCanvas" width="1024" height="200"></canvas>
+  <div id="copiedAreaDiv">
+  <div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAABACAYAAABcIPRGAAAAAXNSR0IArs4c6QAAAKRJREFUaEPt2kEOgCAMRcH2/ofWxCu8RReOe1A+k4KBnfg8M0/sIjXf1Hq+rzeAEqIZQKj4mRmEEEIoJoBQDFAVQuj3hCqBjat5fn/uwADaD9GaAYQQigkgFANUhRBCKCaAUAxQFUIIoZgAQjFAVQghhGICCMUAVSGEEIoJXBOKByT5uk09Xzg/5DMAhOKVM4QQQqjdGrMOXG/HzYAZiLtZhK4JvX6Wv+G1Q2b2AAAAAElFTkSuQmCC" title="Pattern 1" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAIdJREFUaEPt2cENwDAIBMGj/6ITKS3sM+M/toAFH/Y927Owbrtgnk2PAzLQKIKQIm4EDUIQghApQQulKtBGf99Gs5zPG0Q5nc/PG3AgjrQyACEIxQhAKAZQF4IQhGIEIBQDWLtQmgf3pS/9L+SRkgMyEB+2IAQhCLUqcA+4iRtBpAQtFAmC0AvFnIARpslZlgAAAABJRU5ErkJggg==" title="Pattern 2" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAADFJREFUWEft0EERAAAIw7DhXwc6QcY+qYJe5jaXYmOAAAECBAgQIECAAAECBAgQaAs8AuJUgc6I4SYAAAAASUVORK5CYII=" title="Pattern 3" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABACAYAAACNx/A2AAAAAXNSR0IArs4c6QAAARRJREFUeF7t21EKxCAQRMHx/ofOklyhhGHh7X8rlm2EkD3z579n5pElnJmDeYnvZwPEPQgwQBTAeA0MEAUwXgMDRAGM18AAUQDjNTBAFMB4DQwQBTBeAwNEgeX4hQYvr2B5+gBxAwIMEAUwXgMDRAGM18AAUQDjNTBAFMB4DQwQBTBeAwNEAYzXwG3ACztA39fh+jnO6+cB8ANFFsABeP08QIC7n8higTjOBeIBamANlBqfGogFCjBAOYGvnv3PhAfoEsEdCDBAeQZ0C/cMlP58el0iQhig6M2FBuL8fAR0/u08vwzVI7ANoPMHiIIBBogCGK+BAaIAxmtggCiA8RoYIApgvAYGiAIYr4EBogDGayAC/gBZqp/hv351cgAAAABJRU5ErkJggg==" title="Pattern 4" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABQCAYAAADm4nCVAAAAAXNSR0IArs4c6QAAAblJREFUeF7t3GFuAyEMBWH2/odOtLnCZwlZmf5/DjtjoCxpn885n7P45znnWTz88yTgrr4E3OXfDLjMPwEJQAJtwghQ4wlQgphPAALUeAKUIOYTgAA1ngAliPkEIECNJ0AJYj4BCFDjCVCCmF8vAJ//vUyg+wQFqJ+vz695vsxQAAlAhQkwgM0A48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fp69+O3v46WsefAOzhBOCNHPJ//zyHlvFmABpIQDPAWkg7SK9EbfS/9aclSCFKPgEtQdI/PoVbgow/r6EJSECbMPYAxduE24SpgdoDtm9i28ffuyCbwDyDE5AAe5fSEnS5gxKQgA5i2AMU7yDWQYwaiH+Naw8w/gnY3kHbx99B7PIMTkACOgnT/3rABmoT3r6JbR9/ewBO4U7C20/C2AAc1yVEO5AfAAvQmzz87F88ARMUoUYCAN5ENAETFKFGAgDeRDQBExShRgIA3kQ0ARMUoUYCAN5ENAETFKFGAgDeRDQBExShRgIA3kQ0ARMUoUYCAN5E9N8FfAEexgBAQyCgIQAAAABJRU5ErkJggg==" title="Pattern 5" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAAAQCAYAAADpunr5AAAAAXNSR0IArs4c6QAAAFJJREFUWEft1cEJAEAIxEDtv2gProl8xgYCCYt7MzcuM7ACZO4/WIDWvwCxfwEEqA3EfD9AgNhAjLcAAWIDMd4CBIgNxHgLECA2EOMtQIDYQIx/I8Af8WYOaecAAAAASUVORK5CYII=" title="Pattern 6" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAADwCAYAAAA+VemSAAAAAXNSR0IArs4c6QAACgxJREFUeF7t3VFu2zAYBGH5/odO4fQIU2D7Q1/e16SGO6Tk2MnnefnPz/P8FASf5/mU/Nuz+LcGvL58CtQKVNP4N4IEdgK3BsU0gRtAAhO4NSimCdwAEpjArUExTeAGkMAEbg2KaQI3gAQmcGtQTBO4ASQwgVuDYprADSCBCdwaFNMEbgAJTODWoJgmcANIYAK3BsU0gRtAAhO4NSimCdwAEpjArUExTeAGkMAEbg2KaQI3gAQmcGtQTBO4ASQwgVuDYprADSCBCdwaFNMEbgAJTODWoJgmcANIYAK3BsU0gRtAAhO4NSimCdwAEpjArUExTeAGkMAEbg2KaQI3gAQmcGtQTBO4ASQwgVuDYprADSCBCdwaFNMEbgAJTODWoJgmcANIYAK3BsU0gRtAAhO4NSimCdwAEpjArUExTeAGkMAEbg2KaQI3gAQmcGtQTBO4ASQwgVuDYprADSCBo8AN/+8/Fz69BlXAt/P7B9dfX+J2XgHb+uHX+NX06d2/Xvw3r4CNIn6NX00T2C106hCBE74cJjCBU4kInPDlMIEJnEpE4IQvhwlM4FQiAid8OUxgAqcSETjhy2ECEziViMAJXw4TmMCpRARO+HKYwAROJSJwwpfDBCZwKhGBE74cJjCBU4kInPDlMIEJnEpE4IQvhwlM4FQiAid8OUxgAqcSETjhy+HXC5wJegEEhgQIPIRvaAQqAQJXgvIIDAkQeAjf0AhUAgSuBOURGBIg8BC+oRGoBAhcCcojMCRA4CF8QyNQCRC4EpRHYEiAwEP4hkagEiBwJSiPwJAAgYfwDY1AJUDgSlAegSEBAg/hGxqBSoDAlaA8AkMCBB7CNzQClcBn/YXsfAHj/6+75lf/v/D1+df+rK+/zp/AkeC6AARuC7hevzb75yFwJLguAIHbAq7Xr82ewJXf+X8Qvi5w3YDqAq6vv87fCRwJrgtQBbg+/7h88w24zp/AkeB1Aa7PPy4fgSvAmq8nUB3/ugDX5399/er8ncCR4HUBrs8/Lp8TuAKseSfwkz6MQ+Cvw3d/nMBx7a4LcH3+cfmcwBVgzTuBncClQ+sNrMz9m3UCR4LrAtQN7Pr84/I5gSvAmq8FruNfF+D6/K+vX52/EzgSvC7A9fnH5XMCV4A17wT2DFw6tN7Aytw9A1d6z+8/F57+GqJuYNfnX5dwff11/ul3iHXwb74CXBfY+Ns7gOv8q0MEjifo9QLZQNsdVF1/Ase/yKHA2wK/nT+BCZzuot4u0Pr6CUxgAgcLCBzgeRPLm3hrgdbjR33aO4h1cAITeC3QevzqULr9qoMTmMBrgdbjV4cI7NdI6YMo9dcoa4HW4xPYm1hpE14X+O3jE5jABA4WrDeQMPXfaFr8OrhnYM/Aa4HW41eHCOwZ2DNwsKi+BxCGdgK7A3AH4ASOW8gaoPF9FrpU2AnsFtYtbDCoCrTewMOl/x+30PUCar4uYB2/FrCOX/P4VYItP38Tq02/pxWwMcSv8atpAsdb+H+wAKfXgMC1AS1/ujzt0v+mFbBRxK/xq2kCO4FThwic8OUwgQmcSkTghC+HCUzgVCICJ3w5TGACpxIROOHLYQITOJWIwAlfDhOYwKlEBE74cpjABE4lInDCl8MEJnAqEYETvhwmMIFTiQic8OUwgQmcSkTghC+HCUzgVCICJ3w5TGACpxIROOHL4dcLnAl6AQSGBAg8hG9oBCoBAleC8ggMCRB4CN/QCFQCBK4E5REYEiDwEL6hEagECFwJyiMwJEDgIXxDI1AJELgSlEdgSIDAQ/iGRqASIHAlKI/AkACBh/ANjUAlQOBKUB6BIQECD+EbGoFKgMCVoDwCQwIEHsI3NAKVwOsF9oX0ViH8Gr+aJrC/yJE6ROCEL4cJTOBUIgInfDlMYAKnEhE44cthAhM4lYjACV8OE5jAqUQETvhymMAETiUicMKXwwQmcCoRgRO+HCYwgVOJCJzw5TCBCZxKROCEL4cJTOBUIgInfDlMYAKnEhE44cthAhM4lYjACV8OE5jAqUQETvhymMAETiUicMKXwwQmcCoRgRO+HJ4LXAvweZ50DcZ/fkqL8G/9K+y/2VT+Ovg3TyAClR5d30DKtRPYBmIDjY9QdQMhcLyLcAfgDqBIRODxDkhgAhM4ECAQgUJ9vm/ipPdx1v0r1+4Z2DOwZ+DxHSCBj+/A6xPA+Ns7IAIT+PQt5Ns3EAITmMDBgvUGEqb+G02LXwf3QQ4fZFkLtB6/OkTg8ZsY6wIZ3zNw2kQUaFsg/Lf8kzxuod3CEpjAaRNRoG2B8N/yT/I4gZ3ABD4ucF3AuoPUfP0oXR1/za9e//X5X1+/Ov/PegHzBYx/FbbmR+DWoPX6tdk/D4EjwXUBCNwWcL1+bfYErvzylwHqBAjcCBK48cvpWuA6gXUB6vVfn//19avzdwsdCV4X4Pr84/LN76Dq/AkcCV4X4Pr84/IRuAKs+XoLWce/LsD1+V9fvzp/J3AkeF2A6/OPy+cErgBr3gncvhJK4PZJrNrfmncCR4LXBbg+/7h8TuAKsOadwE7g0qH1Blbm/s06gSPBdQHqBnZ9/nH5nMAVYM3XAtfxrwtwff7X16/O3wkcCV4X4Pr84/I5gSvAmncCewYuHVpvYGXuv8/A9QXkEUBgR4DAO/ZGRiATIHBG6AUQ2BEg8I69kRHIBAicEXoBBHYECLxjb2QEMgECZ4ReAIEdAQLv2BsZgUyAwBmhF0BgR4DAO/ZGRiATIHBG6AUQ2BEg8I69kRHIBAicEXoBBHYECLxjb2QEMgECZ4ReAIEdAQLv2BsZgUzg9QKvv9C9/oMEtUH4VYItT+Bn+3eBCZwL/OoOv/riv9VxgjSB8Gv8aprATuDUIQInfDlMYAKnEhE44cthAhM4lYjACV8OE5jAqUQETvhymMAETiUicMKXwwQmcCoRgRO+HCYwgVOJCJzw5TCBCZxKROCEL4cJTOBUIgInfDlMYAKnEhE44cthAhM4lYjACV8OE5jAqUQETvhymMAETiUicMKXwwSOAl//OmBuUHyBugG8nT+BCRwVbHECN34EJnBrUEwTuAEkMIFbg2KawA0ggQncGhTTBG4ACUzg1qCYJnADSGACtwbFNIEbQAITuDUopgncABKYwK1BMU3gBpDABG4NimkCN4AEJnBrUEwTuAEkMIFbg2KawA0ggQncGhTTBG4ACUzg1qCYJnADSGACtwbFNIEbQAITuDUopgncABKYwK1BMU3gBpDABG4NimkCN4AEJnBrUEwTuAEkMIFbg2KawA0ggQncGhTTBG4ACUzg1qCYJnADSGACtwbFNIEbQAITuDUopgncABKYwK1BMU3gBpDABG4NimkCN4AEJnBrUEwTuAEkMIFbg2KawA0ggQncGhTTBG4ACUzg1qCYJnADSGACtwbFNIEbQAITuDUopgncAP4BnvWA7XoroIgAAAAASUVORK5CYII=" title="Pattern 7" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAAAAXNSR0IArs4c6QAAAVtJREFUeF7t20EOwjAUxNDk/odu1TO8L0VRzd5DsQuLAHvh41nrwQnC91qbBg7DfPEFsIIFMH9MF4AV2kABzB/TBWCFNlAA88d0AVihDRTA/DFdAFZoAwUwf0wXgBXaQAHMH9MFYIU2UADzx3QBWKENcAB7eqdvPw4vAN4D+oVQAQpgBvoIMn9MF4AV2kABzB/TBWCFNlAA88d0AVihDRTA/DFdAFZoAwUwf0wXgBXaQAHMH9MFYIU2cH2A21+A5TtP7wKcjVCAs/5XAQpw93+8tF/vADWIfAFQoOIFUIPIFwAFKl4ANYh8AVCg4gVQg8gXAAUqXgA1iHwBUKDiBVCDyB//dfTp43D09x1kkUOC9eI/vgATFmGjACBvAi3AhEXYKADIm0ALMGERNgoA8ibQAkxYhI0CgLwJtAATFmGjACBvAi3AhEXYKADIm0ALMGERNgoA8ibQvwd4AbzUgEFuvMEAAAAAAElFTkSuQmCC" title="Pattern 8" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div></div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+  <script>
+    class GameOfLife {
+      constructor(config = {}) {
+          // Canvas elements
+          this.gameCanvas = document.getElementById('gameCanvas');
+          this.ctx = this.gameCanvas.getContext('2d');
+          this.overlayCanvas = document.getElementById('overlayCanvas');
+          this.overlayCtx = this.overlayCanvas.getContext('2d');
+          this.graphCanvas = document.getElementById('graphCanvas');
+          this.graphCtx = this.graphCanvas.getContext('2d');
+  
+          // Références aux éléments de la modale
+          this.resetModal = document.getElementById('resetModal');
+          this.resetForm = document.getElementById('resetForm');
+          this.applyResetButton = document.getElementById('applyReset');
+          this.cancelResetButton = document.getElementById('cancelReset');
+          this.currentSeedOption = document.getElementById('currentSeedOption');
+  
+          // Configuration parameters
+          this.gridSize = config.gridSize || 64;
+          this.cellSize = this.gameCanvas.width / this.gridSize;
+          this.speed = config.speed || 100;
+          this.seed = config.seed || Math.floor(Math.random() * 100000);
+          this.isPaused = false;
+          this.generationCount = 0;
+          this.maxGenerations = 500;
+          this.populationCounts = [];
+          this.energyCounts = [];
+  
+          // Grids for the game
+          this.currentGrid = this.createGrid(this.gridSize);
+          this.nextGrid = this.createGrid(this.gridSize);
+  
+          // Events and controls
+          this.hoveredCell = null;
+          this.selectedCell = null;
+          this.isAreaSelected = false;
+          this.isDragging = false;
+          this.draggedArea = null;
+          this.isSelecting = false;
+          this.startX = null;
+          this.startY = null;
+          this.endX = null;
+          this.endY = null;
+          this.dashOffset = 0;
+          this.isAnimationRunning = false;
+          this.copiedAreas = [];
+          this.idAnim = null;
+  
+          // Selected area
+          this.selectedArea = null;
+  
+          // Reference to HTML elements
+          this.infoDiv = document.getElementById('infoDiv');
+          this.CellInfoContent = document.getElementById('CellInfoContent');
+          this.genomeInfo = document.getElementById('genomeInfo');
+          this.survivalColumn = document.getElementById('survivalColumn');
+          this.birthColumn = document.getElementById('birthColumn');
+          this.moveColumn = document.getElementById('moveColumn');
+          this.cellProxy = document.getElementById('cellProxy');
+          this.copyButton = document.getElementById('copyButton');
+          this.copiedAreaDiv = document.getElementById('copiedAreaDiv');
+  
+          // Patterns and genomes
+          this.patterns = []; // Will store all patterns
+          this.genomeTypes = {}; // Will store genome definitions
+  
+          // Pre-recorded worlds
+          this.worlds = [
+          {
+              name: "World 1",
+              grid: [
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+              ]
+          }
+              // Ajoutez ici de nouveaux mondes à mesure qu'ils sont créés
+        ];
+      
+  
+          // Initialize the game
+          this.initGame();
+          this.bindEvents();
       }
-      return grid;
+  
+      // Initialize the game with the current seed
+      initGame() {
+          Math.seedrandom(this.seed);
+          this.updateControls();
+          this.initializeGridWithObstacles();
+          this.drawGrid(this.currentGrid);
+          this.generationCount = 0;
+          setTimeout(() => this.update(), this.speed);
+          // Define genomes and patterns
+          this.defineGenomes();
+          this.definePatterns();
+          // Preload patterns
+          this.preloadPatterns();
+      }
+  
+      // Update control elements
+      updateControls() {
+          document.getElementById('round').innerText = '0';
+          document.getElementById('seed').value = this.seed;
+          document.getElementById('board').value = this.gridSize;
+          document.getElementById('speed').value = this.speed;
+      }
+  
+      // Copy a grid
+      copyGrid(sourceGrid) {
+        const size = sourceGrid.length;
+        const newGrid = new Array(size);
+        for (let y = 0; y < size; y++) {
+          newGrid[y] = new Array(size);
+          for (let x = 0; x < size; x++) {
+            // Utiliser deepCloneCell pour chaque cellule
+            newGrid[y][x] = this.deepCloneCell(sourceGrid[y][x]);
+          }
+        }
+        return newGrid;
+      }
+      
+      // Create an empty grid
+      createGrid(size) {
+        const grid = new Array(size);
+        for (let y = 0; y < size; y++) {
+          grid[y] = new Array(size);
+          for (let x = 0; x < size; x++) {
+            grid[y][x] = this.createEmptyCell();
+          }
+        }
+        return grid;
+      }
+  
+      // Create an empty cell
+      createEmptyCell() {
+        return { 
+          age: -1, 
+          state: 0, 
+          genome: null, 
+          energy: 0, 
+          energyLeft: 0,
+          actionRules: Array(8).fill([]), // 8 ActionRules for energy and cells
+          actionValues: Array(8).fill(0) // Values calculated for each ActionRule
+        };
     }
-
-    // Create an empty cell
-    createEmptyCell() {
-      return { age: -1, state: 0, genome: null, energy: 0, energyLeft: 0 };
-    }
-
-    // Initialize the grid with random cells and obstacles
-    initializeGridWithObstacles() {
-      this.initializeGrid(this.currentGrid);
-      this.addCrossObstacles(this.currentGrid);
-      this.drawGrid(this.currentGrid);
-    }
-
-    // Initialize the grid with random live cells
-    initializeGrid(grid) {
-      for (let y = 0; y < grid.length; y++) {
-        for (let x = 0; x < grid[0].length; x++) {
-          if (Math.random() < 0.2) {
-            grid[y][x].age = 0;
-            grid[y][x].state = 1;
-            grid[y][x].genome = this.generateRandomGenome();
-            grid[y][x].energy = 100;
+      // Initialize the grid with random cells and obstacles
+      initializeGridWithObstacles() {
+        this.initializeGrid(this.currentGrid);
+        this.addCrossObstacles(this.currentGrid);
+        this.drawGrid(this.currentGrid);
+      }
+  
+      // Initialize the grid with random live cells
+      initializeGrid(grid) {
+        for (let y = 0; y < grid.length; y++) {
+          for (let x = 0; x < grid[0].length; x++) {
+            if (Math.random() < 0.2) {
+              grid[y][x].age = 0;
+              grid[y][x].state = 1;
+              grid[y][x].genome = this.generateRandomGenome();
+              grid[y][x].energy = 100;
+            }
           }
         }
       }
-    }
-
-    // Generate a random genome for a cell
-    generateRandomGenome() {
-      const directions = [1, 2, 3, 4];
-      let moveRules = [];
-      let survivalRules = [];
-      let birthRules = [];
-      let mover = false;
-
-      if (Math.random() < 0.05) {
-        survivalRules = [0, 1, 2, 3, 4, 5, 6, 7];
-        moveRules = Array(24).fill().map(() => directions[Math.floor(Math.random() * directions.length)]);
+  
+      // Generate a random genome for a cell
+      generateRandomGenome() {
+        const directions = [1, 2, 3, 4];
+        let moveRules = [];
+        let survivalRules = [];
+        let birthRules = [];
+        let actionRules = Array(8).fill([]); // Initialize 8 action rules
+        let mover = false;
+  
+        if (Math.random() < 0.05) {
+          survivalRules = [0, 1, 2, 3, 4, 5, 6, 7];
+          moveRules = Array(24).fill().map(() => directions[Math.floor(Math.random() * directions.length)]);
+          return { survivalRules, birth: birthRules, moveRules };
+        }
+  
+        if (Math.random() < 0.1) {
+          let numInstructions = Math.floor(Math.random() * 1 + 1);
+          for (let i = 0; i < numInstructions; i++) {
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            moveRules.push(direction);
+          }
+          mover = true;
+        }
+  
+        let survivalConditions = mover ? [2, 3, 4] : [2, 3, 4];
+        survivalRules = [2, 3]; // Example survival rules
+  
+        survivalRules.push(survivalConditions[Math.floor(Math.random() * survivalConditions.length)]);
+        survivalRules.push(survivalConditions[Math.floor(Math.random() * survivalConditions.length)]);
+        
+        birthRules.push([2, 3, 4, 5][Math.floor(Math.random() * 4)]);
+  
         return { survivalRules, birth: birthRules, moveRules };
       }
-
-      if (Math.random() < 0.1) {
-        let numInstructions = Math.floor(Math.random() * 1 + 1);
-        for (let i = 0; i < numInstructions; i++) {
-          const direction = directions[Math.floor(Math.random() * directions.length)];
-          moveRules.push(direction);
+  
+      // Add cross obstacles to the grid
+      addCrossObstacles(grid) {
+        const mid = Math.floor(this.gridSize / 2);
+        const length = Math.floor(this.gridSize / 3);
+        for (let x = mid; x < mid + length; x++) {
+          grid[mid][x].state = -1;
         }
-        mover = true;
+        for (let y = mid; y < mid + length; y++) {
+          grid[y][mid].state = -1;
+        }
+        for (let y = mid - length; y < mid; y++) {
+          grid[y][mid].state = -1;
+        }
+        for (let x = mid - length; x < mid; x++) {
+          grid[mid][x].state = -1;
+        }
       }
-
-      let survivalConditions = mover ? [2, 3, 4] : [2, 3, 4];
-      survivalRules.push(2);
-      survivalRules.push(3);
-      survivalRules.push(survivalConditions[Math.floor(Math.random() * survivalConditions.length)]);
-      survivalRules.push(survivalConditions[Math.floor(Math.random() * survivalConditions.length)]);
-
-      birthRules.push([2, 3, 4, 5][Math.floor(Math.random() * 4)]);
-
-      return { survivalRules, birth: birthRules, moveRules };
-    }
-
-    // Add cross obstacles to the grid
-    addCrossObstacles(grid) {
-      const mid = Math.floor(this.gridSize / 2);
-      const length = Math.floor(this.gridSize / 3);
-      for (let x = mid; x < mid + length; x++) {
-        grid[mid][x].state = -1;
-      }
-      for (let y = mid; y < mid + length; y++) {
-        grid[y][mid].state = -1;
-      }
-      for (let y = mid - length; y < mid; y++) {
-        grid[y][mid].state = -1;
-      }
-      for (let x = mid - length; x < mid; x++) {
-        grid[mid][x].state = -1;
-      }
-    }
-
-    // Draw the grid
-    drawGrid(grid) {
-      this.ctx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
-      for (let y = 0; y < this.gridSize; y++) {
-        for (let x = 0; x < this.gridSize; x++) {
-          const cell = grid[y][x];
-          if (cell.state === 1) {
-            const colorValue = Math.max(0, 255 - cell.age);
-            if (cell.genome.moveRules.length > 0 && cell.genome.moveRules[0]) {
-              if (cell.genome.birth[0]) {
-                this.ctx.fillStyle = `rgb(${colorValue}, ${colorValue / 2}, 0)`;
+  
+      // Draw the grid
+      drawGrid(grid) {
+        this.ctx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
+        for (let y = 0; y < this.gridSize; y++) {
+          for (let x = 0; x < this.gridSize; x++) {
+            const cell = grid[y][x];
+            if (cell.state === 1) {
+              const colorValue = Math.max(0, 255 - cell.age);
+              if (cell.genome.moveRules.length > 0 && cell.genome.moveRules[0]) {
+                if (cell.genome.birth[0]) {
+                  this.ctx.fillStyle = `rgb(${colorValue}, ${colorValue / 2}, 0)`;
+                } else {
+                  this.ctx.fillStyle = `rgb(${colorValue}, ${colorValue}, 0)`;
+                }
               } else {
-                this.ctx.fillStyle = `rgb(${colorValue}, ${colorValue}, 0)`;
+                this.ctx.fillStyle = `rgb(${colorValue}, 0, 0)`;
               }
-            } else {
-              this.ctx.fillStyle = `rgb(${colorValue}, 0, 0)`;
+              this.ctx.fillRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize);
+            } else if (cell.state === -1) {
+              this.ctx.fillStyle = 'grey';
+              this.ctx.fillRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize);
+            } else if (cell.energyLeft > 0) {
+              const energyRatio = cell.energyLeft / 10;
+              const colorValue = Math.floor(energyRatio * 255);
+              this.ctx.fillStyle = `rgb(0, ${colorValue}, 0)`;
+              const energySize = this.cellSize / 2;
+              this.ctx.fillRect(
+                x * this.cellSize + this.cellSize / 4,
+                y * this.cellSize + this.cellSize / 4,
+                energySize,
+                energySize
+              );
             }
-            this.ctx.fillRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize);
-          } else if (cell.state === -1) {
-            this.ctx.fillStyle = 'grey';
-            this.ctx.fillRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize);
-          } else if (cell.energyLeft > 0) {
-            const energyRatio = cell.energyLeft / 10;
-            const colorValue = Math.floor(energyRatio * 255);
-            this.ctx.fillStyle = `rgb(0, ${colorValue}, 0)`;
-            const energySize = this.cellSize / 2;
-            this.ctx.fillRect(
-              x * this.cellSize + this.cellSize / 4,
-              y * this.cellSize + this.cellSize / 4,
-              energySize,
-              energySize
-            );
           }
         }
       }
-    }
-
-    // Update the game state
-    update() {
-      if (this.isPaused) {
+  
+      // Update the game state
+      update() {
+        if (this.isPaused) {
+          setTimeout(() => this.update(), this.speed);
+          return;
+        }
+  
+        this.generationCount++;
+        document.getElementById('round').innerText = `${this.generationCount}`;
+        this.nextGrid = this.createGrid(this.gridSize);
+        this.handleMovements();
+        this.handleSurvivalAndReproduction();
+        [this.currentGrid, this.nextGrid] = [this.nextGrid, this.currentGrid];
+        this.drawGrid(this.currentGrid);
+        this.updateGraphData();
+        this.drawGraph();
         setTimeout(() => this.update(), this.speed);
-        return;
       }
-
-      this.generationCount++;
-      document.getElementById('round').innerText = `${this.generationCount}`;
-      this.nextGrid = this.createGrid(this.gridSize);
-      this.handleMovements();
-      this.handleSurvivalAndReproduction();
-      [this.currentGrid, this.nextGrid] = [this.nextGrid, this.currentGrid];
-      this.drawGrid(this.currentGrid);
-      this.updateGraphData();
-      this.drawGraph();
-      setTimeout(() => this.update(), this.speed);
-    }
-
-    // Handle cell movements
-    handleMovements() {
-      let movementIntents = {};
-      for (let y = this.gridSize - 1; y >= 0; y--) {
-        for (let x = this.gridSize - 1; x >= 0; x--) {
-          const cell = this.deepCloneCell(this.currentGrid[y][x]);
-          if (cell.state != 0) {
-            let targetX = x, targetY = y;
+  
+      // Handle cell movements
+      handleMovements() {
+        let movementIntents = {};
+        for (let y = this.gridSize - 1; y >= 0; y--) {
+          for (let x = this.gridSize - 1; x >= 0; x--) {
+            const cell = this.deepCloneCell(this.currentGrid[y][x]);
+            if (cell.state != 0) {
+              let targetX = x, targetY = y;
+              if (cell.state > 0) {
+                if (cell.genome.moveRules.length > 0) {
+                  const dir = cell.genome.moveRules[0];
+                  const [dx, dy] = this.getDirectionOffset(dir);
+                  targetX = (x + dx + this.gridSize) % this.gridSize;
+                  targetY = (y + dy + this.gridSize) % this.gridSize;
+                }
+              }
+              const targetKey = `${targetX},${targetY}`;
+              if (!movementIntents[targetKey]) {
+                movementIntents[targetKey] = [];
+              }
+              movementIntents[targetKey].push({ x, y, cell });
+            }
+          }
+        }
+        this.resolveMovementConflicts(movementIntents);
+      }
+  
+      // Resolve movement conflicts
+      resolveMovementConflicts(movementIntents) {
+        let conflictsExist = true;
+        while (conflictsExist) {
+          conflictsExist = false;
+          let newMovementIntents = {};
+          for (let targetKey in movementIntents) {
+            const intents = movementIntents[targetKey];
+            if (intents.length > 1) {
+              conflictsExist = true;
+              for (let intent of intents) {
+                const { x, y, cell } = intent;
+                if (`${x},${y}` === targetKey) {
+                  if (!newMovementIntents[targetKey]) {
+                    newMovementIntents[targetKey] = [];
+                  }
+                  newMovementIntents[targetKey].push(intent);
+                } else {
+                  const originalKey = `${x},${y}`;
+                  if (!newMovementIntents[originalKey]) {
+                    newMovementIntents[originalKey] = [];
+                  }
+                  newMovementIntents[originalKey].push({ x, y, cell });
+                }
+              }
+            } else {
+              if (!newMovementIntents[targetKey]) {
+                newMovementIntents[targetKey] = [];
+              }
+              newMovementIntents[targetKey].push(intents[0]);
+            }
+          }
+          movementIntents = newMovementIntents;
+        }
+        this.applyMovements(movementIntents);
+      }
+  
+      // Apply movements after resolving conflicts
+      applyMovements(movementIntents) {
+        for (const targetKey in movementIntents) {
+          const intents = movementIntents[targetKey];
+          const [targetX, targetY] = targetKey.split(',').map(Number);
+          if (intents.length === 1) {
+            const { x, y, cell } = intents[0];
             if (cell.state > 0) {
               if (cell.genome.moveRules.length > 0) {
-                const dir = cell.genome.moveRules[0];
-                const [dx, dy] = this.getDirectionOffset(dir);
-                targetX = (x + dx + this.gridSize) % this.gridSize;
-                targetY = (y + dy + this.gridSize) % this.gridSize;
-              }
-            }
-            const targetKey = `${targetX},${targetY}`;
-            if (!movementIntents[targetKey]) {
-              movementIntents[targetKey] = [];
-            }
-            movementIntents[targetKey].push({ x, y, cell });
-          }
-        }
-      }
-      this.resolveMovementConflicts(movementIntents);
-    }
-
-    // Resolve movement conflicts
-    resolveMovementConflicts(movementIntents) {
-      let conflictsExist = true;
-      while (conflictsExist) {
-        conflictsExist = false;
-        let newMovementIntents = {};
-        for (let targetKey in movementIntents) {
-          const intents = movementIntents[targetKey];
-          if (intents.length > 1) {
-            conflictsExist = true;
-            for (let intent of intents) {
-              const { x, y, cell } = intent;
-              if (`${x},${y}` === targetKey) {
-                if (!newMovementIntents[targetKey]) {
-                  newMovementIntents[targetKey] = [];
-                }
-                newMovementIntents[targetKey].push(intent);
+                this.moveCell(x, y, targetX, targetY, cell, this.nextGrid);
               } else {
-                const originalKey = `${x},${y}`;
-                if (!newMovementIntents[originalKey]) {
-                  newMovementIntents[originalKey] = [];
-                }
-                newMovementIntents[originalKey].push({ x, y, cell });
+                this.nextGrid[targetY][targetX] = { age: cell.age, state: cell.state, genome: cell.genome, energy: cell.energy, energyLeft: 0 };
               }
-            }
-          } else {
-            if (!newMovementIntents[targetKey]) {
-              newMovementIntents[targetKey] = [];
-            }
-            newMovementIntents[targetKey].push(intents[0]);
-          }
-        }
-        movementIntents = newMovementIntents;
-      }
-      this.applyMovements(movementIntents);
-    }
-
-    // Apply movements after resolving conflicts
-    applyMovements(movementIntents) {
-      for (const targetKey in movementIntents) {
-        const intents = movementIntents[targetKey];
-        const [targetX, targetY] = targetKey.split(',').map(Number);
-        if (intents.length === 1) {
-          const { x, y, cell } = intents[0];
-          if (cell.state > 0) {
-            if (cell.genome.moveRules.length > 0) {
-              this.moveCell(x, y, targetX, targetY, cell, this.nextGrid);
             } else {
-              this.nextGrid[targetY][targetX] = { age: cell.age, state: cell.state, genome: cell.genome, energy: cell.energy, energyLeft: 0 };
+              this.nextGrid[targetY][targetX] = { age: cell.age, state: cell.state, genome: null, energy: cell.energy, energyLeft: 0 };
             }
-          } else {
-            this.nextGrid[targetY][targetX] = { age: cell.age, state: cell.state, genome: null, energy: cell.energy, energyLeft: 0 };
           }
         }
       }
-    }
-
-    // Handle survival and reproduction
-    handleSurvivalAndReproduction() {
-      for (let y = 0; y < this.gridSize; y++) {
-        for (let x = 0; x < this.gridSize; x++) {
-          const cell = this.nextGrid[y][x];
-          const cellLast = this.currentGrid[y][x];
-
-          if (cellLast.state === -1) {
-            this.nextGrid[y][x] = { ...cellLast };
-            continue;
-          }
-
-          if (cellLast.energyLeft > 0 && cell.state == 0) {
-            this.nextGrid[y][x] = {
-              state: 0,
-              genome: null,
-              energy: 0,
-              energyLeft: cellLast.energyLeft,
-              age: -1
-            };
-          }
-
-          const neighbors = this.countAliveNeighbors(this.currentGrid, x, y);
-          if (cell.state === 1) {
-            if (cell.genome.birth[0]) cell.age += 1;
-            const survivalRules = cell.genome.survivalRules;
-            if (!survivalRules.includes(neighbors) && !cell.genome.birth.includes(neighbors)) {
-              this.cellDies(this.nextGrid, x, y, cell.energy / 15);
+  
+      // Handle survival and reproduction
+      handleSurvivalAndReproduction() {
+        for (let y = 0; y < this.gridSize; y++) {
+          for (let x = 0; x < this.gridSize; x++) {
+            const cell = this.nextGrid[y][x];
+            const cellLast = this.currentGrid[y][x];
+  
+            if (cellLast.state === -1) {
+              this.nextGrid[y][x] = { ...cellLast };
+              continue;
             }
-          } else {
-            const neighbors = this.getAliveNeighbors(this.currentGrid, x, y);
-            const neighborsCount = neighbors.length;
-            const compatibleNeighbors = neighbors.filter(cell => cell.genome.birth.includes(neighborsCount));
-            if (compatibleNeighbors.length >= 2) {
-              const parent1 = compatibleNeighbors[0];
-              const parent2 = compatibleNeighbors[1];
-              const childGenome = this.crossoverGenomes(parent1.genome, parent2.genome, parent1.energy, parent2.energy);
-              let childEnergy = (parent1.energy + parent2.energy) / 2;
+  
+            if (cellLast.energyLeft > 0 && cell.state == 0) {
               this.nextGrid[y][x] = {
-                state: 1,
-                genome: childGenome,
-                energy: childEnergy,
-                energyLeft: 0,
-                age: 0
+                state: 0,
+                genome: null,
+                energy: 0,
+                energyLeft: cellLast.energyLeft,
+                age: -1
               };
             }
-          }
-        }
-      }
-    }
-
-    // Deep clone a cell
-    deepCloneCell(cell) {
-      return {
-        age: cell.age,
-        state: cell.state,
-        genome: cell.genome ? {
-          survivalRules: [...cell.genome.survivalRules],
-          birth: [...cell.genome.birth],
-          moveRules: [...cell.genome.moveRules]
-        } : null,
-        energy: cell.energy,
-        energyLeft: cell.energyLeft
-      };
-    }
-
-    // Get direction offsets
-    getDirectionOffset(dir) {
-      switch (dir) {
-        case 1: return [0, -1]; // North
-        case 2: return [0, 1];  // South
-        case 3: return [1, 0];  // East
-        case 4: return [-1, 0]; // West
-        default: return [0, 0];
-      }
-    }
-
-    // Move a cell
-    moveCell(x, y, targetX, targetY, cell, nextGrid) {
-      let energy = cell.energy;
-      let moveRules = cell.genome.moveRules.slice();
-      let targetCell = this.currentGrid[targetY][targetX];
-      if (cell.genome.birth.length > 0) energy -= 0.5;
-      if (energy <= 0) {
-        this.cellDies(nextGrid, x, y, cell.genome.moveRules.length + cell.genome.birth.length + cell.genome.survivalRules.length);
-      } else {
-        energy += targetCell.energyLeft;
-        if (energy > 200) energy = 200;
-        moveRules.push(moveRules.shift());
-        cell.genome.moveRules = moveRules;
-        nextGrid[targetY][targetX] = { age: cell.age, state: 1, genome: cell.genome, energy: energy, energyLeft: 0 };
-      }
-    }
-
-    // Handle cell death
-    cellDies(grid, x, y, energyLeft) {
-      grid[y][x] = {
-        age: -1,
-        state: 0,
-        genome: null,
-        energy: 0,
-        energyLeft: grid[y][x].energyLeft + energyLeft
-      };
-    }
-
-    // Count alive neighbors
-    countAliveNeighbors(grid, x, y) {
-      let count = 0;
-      for (let j = -1; j <= 1; j++) {
-        for (let i = -1; i <= 1; i++) {
-          if (i === 0 && j === 0) continue;
-          const nx = (x + i + this.gridSize) % this.gridSize;
-          const ny = (y + j + this.gridSize) % this.gridSize;
-          if (grid[ny][nx].state === 1) {
-            count++;
-          }
-        }
-      }
-      return count;
-    }
-
-    // Get alive neighbors
-    getAliveNeighbors(grid, x, y) {
-      const neighbors = [];
-      for (let j = -1; j <= 1; j++) {
-        for (let i = -1; i <= 1; i++) {
-          if (i === 0 && j === 0) continue;
-          const nx = (x + i + this.gridSize) % this.gridSize;
-          const ny = (y + j + this.gridSize) % this.gridSize;
-          if (grid[ny][nx].state === 1) {
-            neighbors.push(grid[ny][nx]);
-          }
-        }
-      }
-      return neighbors;
-    }
-
-    // Crossover genomes of two parent cells
-    crossoverGenomes(genome1, genome2, energy1, energy2) {
-      const childGenome = {
-        survivalRules: [],
-        birth: null,
-        moveRules: []
-      };
-      for (let i = 0; i < genome1.survivalRules.length; i++) {
-        childGenome.survivalRules[i] = Math.random() < 0.5 ? genome1.survivalRules[i] : genome2.survivalRules[i];
-      }
-      childGenome.birth = Math.random() < 0.5 ? genome1.birth : genome2.birth;
-      childGenome.moveRules = this.crossoverMoveRules(genome1.moveRules, genome2.moveRules, energy1, energy2);
-      return childGenome;
-    }
-
-    // Crossover move rules
-    crossoverMoveRules(rules1, rules2, energy1, energy2) {
-      const childRules = [];
-      const maxLength = Math.max(rules1.length, rules2.length);
-      for (let i = 0; i < maxLength; i++) {
-        let instruction = null;
-        const instr1 = rules1[i] || null;
-        const instr2 = rules2[i] || null;
-        const lowEnergy = (energy1 < 10 || energy2 < 10);
-        const mutation = lowEnergy && Math.random() < 0.5;
-        if (mutation) {
-          if (instr1 !== null && instr2 !== null) {
-            childRules.push(instr1);
-            if (childRules.length < maxLength) childRules.push(instr2);
-          } else if (instr1 !== null) {
-            instruction = instr1;
-          } else if (instr2 !== null) {
-            instruction = instr2;
-          }
-        } else {
-          if (instr1 !== null && instr2 !== null) {
-            instruction = Math.random() < 0.5 ? instr1 : instr2;
-          } else if (instr1 !== null) {
-            instruction = instr1;
-          } else if (instr2 !== null) {
-            instruction = instr2;
-          }
-        }
-        if (instruction !== null) {
-          childRules.push(instruction);
-        }
-        if (childRules.length == maxLength) break;
-      }
-      return childRules;
-    }
-
-    // Update graph data
-    updateGraphData() {
-      let population = 0;
-      let totalEnergy = 0;
-      for (let y = 0; y < this.gridSize; y++) {
-        for (let x = 0; x < this.gridSize; x++) {
-          const cell = this.currentGrid[y][x];
-          if (cell.state === 1) {
-            population++;
-            totalEnergy += cell.energy;
-          }
-          totalEnergy += cell.energyLeft;
-        }
-      }
-      this.populationCounts.push(population);
-      this.energyCounts.push(totalEnergy / 50);
-      if (this.populationCounts.length > this.maxGenerations) {
-        this.populationCounts.shift();
-        this.energyCounts.shift();
-      }
-    }
-
-    // Draw the population and energy graph
-    drawGraph() {
-      this.graphCtx.clearRect(0, 0, this.graphCanvas.width, this.graphCanvas.height);
-      const maxPopulation = this.gridSize * this.gridSize;
-      const maxEnergy = this.gridSize * this.gridSize * 4.2;
-      const scaleX = this.graphCanvas.width / this.maxGenerations;
-      const scaleYPopulation = this.graphCanvas.height / maxPopulation;
-      const scaleYEnergy = this.graphCanvas.height / maxEnergy;
-
-      this.graphCtx.beginPath();
-      this.graphCtx.strokeStyle = '#0000FF';
-      for (let i = 0; i < this.populationCounts.length; i++) {
-        const x = i * scaleX;
-        const y = this.graphCanvas.height - this.populationCounts[i] * scaleYPopulation;
-        if (i === 0) {
-          this.graphCtx.moveTo(x, y);
-        } else {
-          this.graphCtx.lineTo(x, y);
-        }
-      }
-      this.graphCtx.stroke();
-
-      this.graphCtx.beginPath();
-      this.graphCtx.strokeStyle = '#FF0000';
-      for (let i = 0; i < this.energyCounts.length; i++) {
-        const x = i * scaleX;
-        const y = this.graphCanvas.height - this.energyCounts[i] * scaleYEnergy;
-        if (i === 0) {
-          this.graphCtx.moveTo(x, y);
-        } else {
-          this.graphCtx.lineTo(x, y);
-        }
-      }
-      this.graphCtx.stroke();
-    }
-
-    // Bind event listeners
-    bindEvents() {
-      document.getElementById('Reset').addEventListener('click', (event) => {this.resetGame(); event.target.blur(); });
-      document.getElementById('clear').addEventListener('click', (event) => {this.clearGrid(); event.target.blur(); });
-      document.getElementById('seed').addEventListener('change', (event) => {this.changeSeed(event); event.target.blur(); });
-      document.getElementById('board').addEventListener('change', (event) => {this.resizeBoard(event); event.target.blur(); });
-      document.addEventListener('keydown', (event) => this.handleKeyDown(event));
-
-      // Event listeners for the reset modal
-      this.applyResetButton.addEventListener('click', (event) => { this.applyReset(); event.target.blur(); });
-      this.cancelResetButton.addEventListener('click', (event) => { this.closeResetModal(); event.target.blur(); });
-
-      // Mouse events for cell selection
-      this.gameCanvas.addEventListener('mousemove', (event) => this.handleMouseMove(event));
-      this.gameCanvas.addEventListener('mousedown', (event) => this.handleMouseDown(event));
-      this.gameCanvas.addEventListener('mouseup', (event) => this.handleMouseUp(event));
-      this.gameCanvas.addEventListener('click', (event) => this.handleClick(event));
-      this.gameCanvas.addEventListener('mouseout', () => this.handleMouseOut());
-
-      // Copy button event
-      this.copyButton.addEventListener('click', (event) => {this.copySelectedArea(); event.target.blur(); });
-
-      // Draggable copied areas
-      this.copiedAreaDiv.addEventListener('mousedown', (event) => this.handleCopiedAreaMouseDown(event));
-    }
-
-    // Reset the game
-    resetGame() {
-      // Implement reset logic
-      this.initGame();
-    }
-
-    // Clear the grid
-    clearGrid() {
-        if (this.selectedArea) {
-            // Effacer uniquement la zone sélectionnée, en conservant les obstacles
-            const { x1, y1, x2, y2 } = this.selectedArea;
-            for (let y = y1; y <= y2; y++) {
-                for (let x = x1; x <= x2; x++) {
-                    if (this.currentGrid[y][x].state !== -1) { // Ne pas effacer les obstacles
-                    this.currentGrid[y][x] = this.createEmptyCell();
-                    }
-                }
-            }
-            this.clearSelection(); // Supprimer la sélection après l'effacement
-        } else {
-            // Effacer toute la grille en conservant les obstacles
-            for (let y = 0; y < this.gridSize; y++) {
-                for (let x = 0; x < this.gridSize; x++) {
-                    if (this.currentGrid[y][x].state !== -1) { // Ne pas effacer les obstacles
-                    this.currentGrid[y][x] = this.createEmptyCell();
-                    }
-                }
-            }
-        }
-        // Synchronize nextGrid with currentGrid
-        this.nextGrid = JSON.parse(JSON.stringify(this.currentGrid));
-
-        this.drawGrid(this.currentGrid); // Redessiner la grille
-    }
-
-    // Change the seed and reinitialize the game
-    changeSeed(event) {
-      this.seed = event.target.value;
-      this.initGame();
-      event.target.blur();
-    }
-
-    // Resize the board
-    resizeBoard(event) {
-      const newSize = parseInt(event.target.value);
-      this.resizeGameBoard(newSize);
-      event.target.blur();
-    }
-
-    // Resize the game board
-    resizeGameBoard(newSize) {
-      const oldSize = this.gridSize;
-      this.gridSize = newSize;
-      const newGrid = this.createGrid(newSize);
-      const offset = Math.floor((newSize - oldSize) / 2);
-      for (let y = 0; y < oldSize; y++) {
-        for (let x = 0; x < oldSize; x++) {
-          const newY = y + offset;
-          const newX = x + offset;
-          if (newY >= 0 && newY < newSize && newX >= 0 && newX < newSize) {
-            newGrid[newY][newX] = this.currentGrid[y][x];
-          }
-        }
-      }
-      this.currentGrid = newGrid;
-      this.cellSize = this.gameCanvas.width / this.gridSize;
-      this.drawGrid(this.currentGrid);
-    }
-
-    // Handle keydown events
-    handleKeyDown(event) {
-      if (event.key === '+') {
-        this.adjustSpeed(1);
-      } else if (event.key === '-') {
-        this.adjustSpeed(-1);
-      } else if (event.code === 'Space') {
-        this.togglePause();
-      }
-    }
-
-    // Adjust simulation speed
-    adjustSpeed(direction) {
-      if (!this.isPaused) {
-        if (direction == -1)
-          this.speed += direction * (this.speed <= 100 ? 10 : (this.speed <= 1000 ? 100 : 1000));
-        else
-          this.speed += direction * (this.speed < 100 ? 10 : (this.speed < 1000 ? 100 : 1000));
-        this.speed = (this.speed < 10 ? 10 : (this.speed > 5000 ? 5000 : this.speed));
-        document.getElementById('speed').value = this.speed;
-      }
-    }
-
-    // Toggle pause
-    togglePause() {
-      this.isPaused = !this.isPaused;
-      if (this.isPaused) {
-        document.getElementById('speed').value = 'PAUSE';
-      } else {
-        document.getElementById('speed').value = this.speed;
-      }
-    }
-
-    // Handle mouse move over the game canvas
-    handleMouseMove(event) {
-      const rect = this.gameCanvas.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-
-      const cellX = Math.floor(mouseX / this.cellSize);
-      const cellY = Math.floor(mouseY / this.cellSize);
-
-      if (this.isDragging && this.draggedArea) {
-        const { width, height } = this.draggedArea;
-
-        // Clear the overlayCanvas before drawing
-        this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-
-        // Check if the area is valid
-        let isValid = true;
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const targetX = (cellX + x) % this.gridSize;
-            const targetY = (cellY + y) % this.gridSize;
-            if (this.currentGrid[targetY][targetX].state !== 0) {
-              isValid = false;
-              break;
+  
+            const neighbors = this.countAliveNeighbors(this.currentGrid, x, y);
+            if (cell.state === 1) {
+              if (cell.genome.birth[0]) cell.age += 1;
+              const survivalRules = cell.genome.survivalRules;
+              if (!survivalRules.includes(neighbors) && !cell.genome.birth.includes(neighbors)) {
+                this.cellDies(this.nextGrid, x, y, cell.energy / 15);
+              }
+            } else {
+              const neighbors = this.getAliveNeighbors(this.currentGrid, x, y);
+              const neighborsCount = neighbors.length;
+              const compatibleNeighbors = neighbors.filter(cell => cell.genome.birth.includes(neighborsCount));
+              if (compatibleNeighbors.length >= 2) {
+                const parent1 = compatibleNeighbors[0];
+                const parent2 = compatibleNeighbors[1];
+                const childGenome = this.crossoverGenomes(parent1.genome, parent2.genome, parent1.energy, parent2.energy);
+                let childEnergy = (parent1.energy + parent2.energy) / 2;
+                this.nextGrid[y][x] = {
+                  state: 1,
+                  genome: childGenome,
+                  energy: childEnergy,
+                  energyLeft: 0,
+                  age: 0
+                };
+              }
             }
           }
-          if (!isValid) break;
-        }
-
-        // Color the area in green (valid) or magenta (invalid)
-        this.overlayCtx.fillStyle = isValid ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 255, 0.5)';
-        this.overlayCtx.fillRect(cellX * this.cellSize, cellY * this.cellSize, width * this.cellSize, height * this.cellSize);
-      } else {
-        this.hoveredCell = { x: cellX, y: cellY };
-        this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-        if (this.hoveredCell) {
-          this.overlayCtx.strokeStyle = 'grey';
-          this.overlayCtx.setLineDash([]);
-          this.overlayCtx.strokeRect(this.hoveredCell.x * this.cellSize, this.hoveredCell.y * this.cellSize, this.cellSize, this.cellSize);
         }
       }
-
-      if (this.isSelecting) {
-        this.endX = Math.trunc(mouseX / this.cellSize);
-        this.endY = Math.trunc(mouseY / this.cellSize);
-
-        this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-
-        let width = (this.endX - this.startX + 1);
-        let height = (this.endY - this.startY + 1);
-
-        this.overlayCtx.setLineDash([8, 4]);
-        this.overlayCtx.strokeStyle = 'black';
-
-        if (width <= 0) width = width * -1 + 2;
-        if (height <= 0) height = height * -1 + 2;
-
-        this.overlayCtx.strokeRect((this.endX < this.startX ? this.endX : this.startX) * this.cellSize, (this.endY < this.startY ? this.endY : this.startY) * this.cellSize, width * this.cellSize, height * this.cellSize);
+  
+      // Deep clone a cell
+      deepCloneCell(cell) {
+        return {
+          age: cell.age,
+          state: cell.state,
+          genome: cell.genome ? {
+            survivalRules: [...cell.genome.survivalRules],
+            birth: [...cell.genome.birth],
+            moveRules: [...cell.genome.moveRules]
+          } : null,
+          energy: cell.energy,
+          energyLeft: cell.energyLeft
+        };
       }
-    }
-
-    // Handle mouse down on the game canvas
-    handleMouseDown(event) {
-      const rect = this.gameCanvas.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-
-      this.startX = Math.trunc(mouseX / this.cellSize);
-      this.startY = Math.trunc(mouseY / this.cellSize);
-
-      this.isSelecting = true;
-      this.selectedArea = null;
-      this.isAreaSelected = false;
-
-      this.stopAnimation();
-    }
-
-    // Handle mouse up on the game canvas
-    handleMouseUp(event) {
-      event.preventDefault();
-
-      const rect = this.gameCanvas.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-
-      const cellX = Math.floor(mouseX / this.cellSize);
-      const cellY = Math.floor(mouseY / this.cellSize);
-
-      this.endX = cellX;
-      this.endY = cellY;
-
-      if (this.isSelecting) {
-        this.isSelecting = false;
-
-        if (this.startX === this.endX && this.startY === this.endY) {
-          this.selectedArea = { x1: this.startX, y1: this.startY, x2: this.startX, y2: this.startY };
-          this.isAreaSelected = false;
+  
+      // Get direction offsets
+      getDirectionOffset(dir) {
+        switch (dir) {
+          case 1: return [0, -1]; // North
+          case 2: return [0, 1];  // South
+          case 3: return [1, 0];  // East
+          case 4: return [-1, 0]; // West
+          default: return [0, 0];
+        }
+      }
+  
+      // Move a cell
+      moveCell(x, y, targetX, targetY, cell, nextGrid) {
+        let energy = cell.energy;
+        let moveRules = cell.genome.moveRules.slice();
+        let targetCell = this.currentGrid[targetY][targetX];
+        if (cell.genome.birth.length > 0) energy -= 0.5;
+        if (energy <= 0) {
+          this.cellDies(nextGrid, x, y, cell.genome.moveRules.length + cell.genome.birth.length + cell.genome.survivalRules.length);
         } else {
-          const x1 = Math.min(this.startX, this.endX);
-          const y1 = Math.min(this.startY, this.endY);
-          const x2 = Math.max(this.startX, this.endX);
-          const y2 = Math.max(this.startY, this.endY);
-
-          this.selectedArea = { x1, y1, x2, y2 };
-          this.isAreaSelected = true;
+          energy += targetCell.energyLeft;
+          if (energy > 200) energy = 200;
+          moveRules.push(moveRules.shift());
+          cell.genome.moveRules = moveRules;
+          nextGrid[targetY][targetX] = { age: cell.age, state: 1, genome: cell.genome, energy: energy, energyLeft: 0 };
         }
-
-        this.displaySelectionInfo(this.selectedArea.x1, this.selectedArea.y1, this.selectedArea.x2, this.selectedArea.y2);
-        this.infoDiv.style.display = 'inline-block';
-        this.startAnimation();
-        this.startX = this.startY = this.endX = this.endY = null;
-      } else if (this.isDragging && this.draggedArea) {
-        const { width, height } = this.draggedArea;
-
-        let isValid = true;
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const targetX = (cellX + x) % this.gridSize;
-            const targetY = (cellY + y) % this.gridSize;
-            if (this.currentGrid[targetY][targetX].state !== 0) {
-              isValid = false;
-              break;
+      }
+  
+      // Handle cell death
+      cellDies(grid, x, y, energyLeft) {
+        grid[y][x] = {
+          age: -1,
+          state: 0,
+          genome: null,
+          energy: 0,
+          energyLeft: grid[y][x].energyLeft + energyLeft
+        };
+      }
+  
+      // Count alive neighbors
+      countAliveNeighbors(grid, x, y) {
+        let count = 0;
+        for (let j = -1; j <= 1; j++) {
+          for (let i = -1; i <= 1; i++) {
+            if (i === 0 && j === 0) continue;
+            const nx = (x + i + this.gridSize) % this.gridSize;
+            const ny = (y + j + this.gridSize) % this.gridSize;
+            if (grid[ny][nx].state === 1) {
+              count++;
             }
           }
-          if (!isValid) break;
         }
-
-        if (isValid) {
+        return count;
+      }
+  
+      // Get alive neighbors
+      getAliveNeighbors(grid, x, y) {
+        const neighbors = [];
+        for (let j = -1; j <= 1; j++) {
+          for (let i = -1; i <= 1; i++) {
+            if (i === 0 && j === 0) continue;
+            const nx = (x + i + this.gridSize) % this.gridSize;
+            const ny = (y + j + this.gridSize) % this.gridSize;
+            if (grid[ny][nx].state === 1) {
+              neighbors.push(grid[ny][nx]);
+            }
+          }
+        }
+        return neighbors;
+      }
+  
+      // Crossover genomes of two parent cells
+      crossoverGenomes(genome1, genome2, energy1, energy2) {
+        const childGenome = {
+          survivalRules: [],
+          birth: null,
+          moveRules: []
+        };
+        for (let i = 0; i < genome1.survivalRules.length; i++) {
+          childGenome.survivalRules[i] = Math.random() < 0.5 ? genome1.survivalRules[i] : genome2.survivalRules[i];
+        }
+        childGenome.birth = Math.random() < 0.5 ? genome1.birth : genome2.birth;
+        childGenome.moveRules = this.crossoverMoveRules(genome1.moveRules, genome2.moveRules, energy1, energy2);
+        return childGenome;
+      }
+  
+      // Crossover move rules
+      crossoverMoveRules(rules1, rules2, energy1, energy2) {
+        const childRules = [];
+        const maxLength = Math.max(rules1.length, rules2.length);
+        for (let i = 0; i < maxLength; i++) {
+          let instruction = null;
+          const instr1 = rules1[i] || null;
+          const instr2 = rules2[i] || null;
+          const lowEnergy = (energy1 < 10 || energy2 < 10);
+          const mutation = lowEnergy && Math.random() < 0.5;
+          if (mutation) {
+            if (instr1 !== null && instr2 !== null) {
+              childRules.push(instr1);
+              if (childRules.length < maxLength) childRules.push(instr2);
+            } else if (instr1 !== null) {
+              instruction = instr1;
+            } else if (instr2 !== null) {
+              instruction = instr2;
+            }
+          } else {
+            if (instr1 !== null && instr2 !== null) {
+              instruction = Math.random() < 0.5 ? instr1 : instr2;
+            } else if (instr1 !== null) {
+              instruction = instr1;
+            } else if (instr2 !== null) {
+              instruction = instr2;
+            }
+          }
+          if (instruction !== null) {
+            childRules.push(instruction);
+          }
+          if (childRules.length == maxLength) break;
+        }
+        return childRules;
+      }
+  
+      // Update graph data
+      updateGraphData() {
+        let population = 0;
+        let totalEnergy = 0;
+        for (let y = 0; y < this.gridSize; y++) {
+          for (let x = 0; x < this.gridSize; x++) {
+            const cell = this.currentGrid[y][x];
+            if (cell.state === 1) {
+              population++;
+              totalEnergy += cell.energy;
+            }
+            totalEnergy += cell.energyLeft;
+          }
+        }
+        this.populationCounts.push(population);
+        this.energyCounts.push(totalEnergy / 50);
+        if (this.populationCounts.length > this.maxGenerations) {
+          this.populationCounts.shift();
+          this.energyCounts.shift();
+        }
+      }
+  
+      // Draw the population and energy graph
+      drawGraph() {
+        this.graphCtx.clearRect(0, 0, this.graphCanvas.width, this.graphCanvas.height);
+        const maxPopulation = this.gridSize * this.gridSize;
+        const maxEnergy = this.gridSize * this.gridSize * 4.2;
+        const scaleX = this.graphCanvas.width / this.maxGenerations;
+        const scaleYPopulation = this.graphCanvas.height / maxPopulation;
+        const scaleYEnergy = this.graphCanvas.height / maxEnergy;
+  
+        this.graphCtx.beginPath();
+        this.graphCtx.strokeStyle = '#0000FF';
+        for (let i = 0; i < this.populationCounts.length; i++) {
+          const x = i * scaleX;
+          const y = this.graphCanvas.height - this.populationCounts[i] * scaleYPopulation;
+          if (i === 0) {
+            this.graphCtx.moveTo(x, y);
+          } else {
+            this.graphCtx.lineTo(x, y);
+          }
+        }
+        this.graphCtx.stroke();
+  
+        this.graphCtx.beginPath();
+        this.graphCtx.strokeStyle = '#FF0000';
+        for (let i = 0; i < this.energyCounts.length; i++) {
+          const x = i * scaleX;
+          const y = this.graphCanvas.height - this.energyCounts[i] * scaleYEnergy;
+          if (i === 0) {
+            this.graphCtx.moveTo(x, y);
+          } else {
+            this.graphCtx.lineTo(x, y);
+          }
+        }
+        this.graphCtx.stroke();
+      }
+  
+      // Bind event listeners
+      bindEvents() {
+        document.getElementById('Reset').addEventListener('click', (event) => {this.openResetModal(); event.target.blur(); });
+        document.getElementById('clear').addEventListener('click', (event) => {this.clearGrid(); event.target.blur(); });
+        document.getElementById('seed').addEventListener('change', (event) => {this.changeSeed(event); event.target.blur(); });
+        document.getElementById('board').addEventListener('change', (event) => {this.resizeBoard(event); event.target.blur(); });
+        document.addEventListener('keydown', (event) => this.handleKeyDown(event));
+  
+        // Event listeners for the reset modal
+        this.applyResetButton.addEventListener('click', (event) => { this.applyReset(); event.target.blur(); });
+        this.cancelResetButton.addEventListener('click', (event) => { this.closeResetModal(); event.target.blur(); });
+  
+        // Mouse events for cell selection
+        this.gameCanvas.addEventListener('mousemove', (event) => this.handleMouseMove(event));
+        this.gameCanvas.addEventListener('mousedown', (event) => this.handleMouseDown(event));
+        this.gameCanvas.addEventListener('mouseup', (event) => this.handleMouseUp(event));
+        this.gameCanvas.addEventListener('click', (event) => this.handleClick(event));
+        this.gameCanvas.addEventListener('mouseout', () => this.handleMouseOut());
+  
+        // Copy button event
+        this.copyButton.addEventListener('click', (event) => {this.copySelectedArea(); event.target.blur(); });
+  
+        // Draggable copied areas
+        this.copiedAreaDiv.addEventListener('mousedown', (event) => this.handleCopiedAreaMouseDown(event));
+      }
+  
+      // Reset the game
+      resetGame() {
+        // Implement reset logic
+        this.initGame();
+      }
+  
+      // Clear the grid
+      clearGrid() {
+          if (this.selectedArea) {
+              // Effacer uniquement la zone sélectionnée, en conservant les obstacles
+              const { x1, y1, x2, y2 } = this.selectedArea;
+              for (let y = y1; y <= y2; y++) {
+                  for (let x = x1; x <= x2; x++) {
+                      if (this.currentGrid[y][x].state !== -1) { // Ne pas effacer les obstacles
+                      this.currentGrid[y][x] = this.createEmptyCell();
+                      }
+                  }
+              }
+              this.clearSelection(); // Supprimer la sélection après l'effacement
+          } else {
+              // Effacer toute la grille en conservant les obstacles
+              for (let y = 0; y < this.gridSize; y++) {
+                  for (let x = 0; x < this.gridSize; x++) {
+                      if (this.currentGrid[y][x].state !== -1) { // Ne pas effacer les obstacles
+                      this.currentGrid[y][x] = this.createEmptyCell();
+                      }
+                  }
+              }
+          }
+          // Synchronize nextGrid with currentGrid
+          this.nextGrid = this.copyGrid(this.currentGrid); // JSON.parse(JSON.stringify(this.currentGrid));
+  
+          this.drawGrid(this.currentGrid); // Redessiner la grille
+      }
+  
+      // Change the seed and reinitialize the game
+      changeSeed(event) {
+        this.seed = event.target.value;
+        this.initGame();
+        event.target.blur();
+      }
+  
+      // Resize the board
+      resizeBoard(event) {
+        const newSize = parseInt(event.target.value);
+        this.resizeGameBoard(newSize);
+        event.target.blur();
+      }
+  
+      // Resize the game board
+      resizeGameBoard(newSize) {
+        const oldSize = this.gridSize;
+        this.gridSize = newSize;
+        const newGrid = this.createGrid(newSize);
+        const offset = Math.floor((newSize - oldSize) / 2);
+        for (let y = 0; y < oldSize; y++) {
+          for (let x = 0; x < oldSize; x++) {
+            const newY = y + offset;
+            const newX = x + offset;
+            if (newY >= 0 && newY < newSize && newX >= 0 && newX < newSize) {
+              newGrid[newY][newX] = this.currentGrid[y][x];
+            }
+          }
+        }
+        this.currentGrid = newGrid;
+        this.cellSize = this.gameCanvas.width / this.gridSize;
+        this.drawGrid(this.currentGrid);
+      }
+  
+      // Handle keydown events
+      handleKeyDown(event) {
+        if (event.key === '+') {
+          this.adjustSpeed(1);
+        } else if (event.key === '-') {
+          this.adjustSpeed(-1);
+        } else if (event.code === 'Space') {
+          this.togglePause();
+        }
+      }
+  
+      // Adjust simulation speed
+      adjustSpeed(direction) {
+        if (!this.isPaused) {
+          if (direction == -1)
+            this.speed += direction * (this.speed <= 100 ? 10 : (this.speed <= 1000 ? 100 : 1000));
+          else
+            this.speed += direction * (this.speed < 100 ? 10 : (this.speed < 1000 ? 100 : 1000));
+          this.speed = (this.speed < 10 ? 10 : (this.speed > 5000 ? 5000 : this.speed));
+          document.getElementById('speed').value = this.speed;
+        }
+      }
+  
+      // Toggle pause
+      togglePause() {
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+          document.getElementById('speed').value = 'PAUSE';
+        } else {
+          document.getElementById('speed').value = this.speed;
+        }
+      }
+  
+      // Handle mouse move over the game canvas
+      handleMouseMove(event) {
+        const rect = this.gameCanvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+  
+        const cellX = Math.floor(mouseX / this.cellSize);
+        const cellY = Math.floor(mouseY / this.cellSize);
+  
+        if (this.isDragging && this.draggedArea) {
+          const { width, height } = this.draggedArea;
+  
+          // Clear the overlayCanvas before drawing
+          this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+  
+          // Check if the area is valid
+          let isValid = true;
           for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
               const targetX = (cellX + x) % this.gridSize;
               const targetY = (cellY + y) % this.gridSize;
-              const copiedCell = this.draggedArea.gridData[y][x];
-              this.currentGrid[targetY][targetX] = { ...copiedCell };
+              if (this.currentGrid[targetY][targetX].state !== 0) {
+                isValid = false;
+                break;
+              }
+            }
+            if (!isValid) break;
+          }
+  
+          // Color the area in green (valid) or magenta (invalid)
+          this.overlayCtx.fillStyle = isValid ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 255, 0.5)';
+          this.overlayCtx.fillRect(cellX * this.cellSize, cellY * this.cellSize, width * this.cellSize, height * this.cellSize);
+        } else {
+          this.hoveredCell = { x: cellX, y: cellY };
+          this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+          if (this.hoveredCell) {
+            this.overlayCtx.strokeStyle = 'grey';
+            this.overlayCtx.setLineDash([]);
+            this.overlayCtx.strokeRect(this.hoveredCell.x * this.cellSize, this.hoveredCell.y * this.cellSize, this.cellSize, this.cellSize);
+          }
+        }
+  
+        if (this.isSelecting) {
+          this.endX = Math.trunc(mouseX / this.cellSize);
+          this.endY = Math.trunc(mouseY / this.cellSize);
+  
+          this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+  
+          let width = (this.endX - this.startX + 1);
+          let height = (this.endY - this.startY + 1);
+  
+          this.overlayCtx.setLineDash([8, 4]);
+          this.overlayCtx.strokeStyle = 'black';
+  
+          if (width <= 0) width = width * -1 + 2;
+          if (height <= 0) height = height * -1 + 2;
+  
+          this.overlayCtx.strokeRect((this.endX < this.startX ? this.endX : this.startX) * this.cellSize, (this.endY < this.startY ? this.endY : this.startY) * this.cellSize, width * this.cellSize, height * this.cellSize);
+        }
+      }
+  
+      // Handle mouse down on the game canvas
+      handleMouseDown(event) {
+        const rect = this.gameCanvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+  
+        this.startX = Math.trunc(mouseX / this.cellSize);
+        this.startY = Math.trunc(mouseY / this.cellSize);
+  
+        this.isSelecting = true;
+        this.selectedArea = null;
+        this.isAreaSelected = false;
+  
+        this.stopAnimation();
+      }
+  
+      // Handle mouse up on the game canvas
+      handleMouseUp(event) {
+        event.preventDefault();
+  
+        const rect = this.gameCanvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+  
+        const cellX = Math.floor(mouseX / this.cellSize);
+        const cellY = Math.floor(mouseY / this.cellSize);
+  
+        this.endX = cellX;
+        this.endY = cellY;
+  
+        if (this.isSelecting) {
+          this.isSelecting = false;
+  
+          if (this.startX === this.endX && this.startY === this.endY) {
+            this.selectedArea = { x1: this.startX, y1: this.startY, x2: this.startX, y2: this.startY };
+            this.isAreaSelected = false;
+          } else {
+            const x1 = Math.min(this.startX, this.endX);
+            const y1 = Math.min(this.startY, this.endY);
+            const x2 = Math.max(this.startX, this.endX);
+            const y2 = Math.max(this.startY, this.endY);
+  
+            this.selectedArea = { x1, y1, x2, y2 };
+            this.isAreaSelected = true;
+          }
+  
+          this.displaySelectionInfo(this.selectedArea.x1, this.selectedArea.y1, this.selectedArea.x2, this.selectedArea.y2);
+          this.infoDiv.style.display = 'inline-block';
+          this.startAnimation();
+          this.startX = this.startY = this.endX = this.endY = null;
+        } else if (this.isDragging && this.draggedArea) {
+          const { width, height } = this.draggedArea;
+  
+          let isValid = true;
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const targetX = (cellX + x) % this.gridSize;
+              const targetY = (cellY + y) % this.gridSize;
+              if (this.currentGrid[targetY][targetX].state !== 0) {
+                isValid = false;
+                break;
+              }
+            }
+            if (!isValid) break;
+          }
+  
+          if (isValid) {
+            for (let y = 0; y < height; y++) {
+              for (let x = 0; x < width; x++) {
+                const targetX = (cellX + x) % this.gridSize;
+                const targetY = (cellY + y) % this.gridSize;
+                const copiedCell = this.draggedArea.gridData[y][x];
+                this.currentGrid[targetY][targetX] = { ...copiedCell };
+              }
+            }
+            this.drawGrid(this.currentGrid);
+          }
+  
+          // Synchronize nextGrid with currentGrid
+          this.nextGrid = this.copyGrid(this.currentGrid); // JSON.parse(JSON.stringify(this.currentGrid));
+  
+          this.isDragging = false;
+          this.draggedArea = null;
+          this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        }
+      }
+  
+      // Handle click on the game canvas
+      handleClick(event) {
+        const rect = this.gameCanvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+  
+        const cellX = Math.floor(mouseX / this.cellSize);
+        const cellY = Math.floor(mouseY / this.cellSize);
+  
+        if (this.selectedCell && this.selectedCell.x === cellX && this.selectedCell.y === cellY) {
+          this.clearSelection();
+          this.infoDiv.style.display = 'none';
+        } else {
+          this.selectedCell = { x: cellX, y: cellY };
+          this.displayCellInfo(cellX, cellY);
+          this.infoDiv.style.display = 'inline-block';
+          this.startAnimation();
+        }
+  
+        this.drawGrid(this.currentGrid);
+      }
+  
+      // Handle mouse out from the game canvas
+      handleMouseOut() {
+        this.hoveredCell = null;
+        this.overlayCtx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
+      }
+  
+      // Clear selection
+      clearSelection() {
+        this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        this.selectedCell = null;
+        this.selectedArea = null;
+        this.isAreaSelected = false;
+        this.stopAnimation();
+  
+        this.CellInfoContent.innerHTML = '';
+        this.survivalColumn.innerHTML = '';
+        this.birthColumn.innerHTML = '';
+        this.moveColumn.innerHTML = '';
+  
+        this.infoDiv.style.display = 'none';
+      }
+  
+      // Start dashed border animation
+      startAnimation() {
+        if (!this.isAnimationRunning) {
+          this.isAnimationRunning = true;
+          this.idAnim = requestAnimationFrame(() => this.animateDashedBorder());
+        }
+      }
+  
+      // Stop dashed border animation
+      stopAnimation() {
+        this.isAnimationRunning = false;
+        cancelAnimationFrame(this.idAnim);
+        this.idAnim = null;
+      }
+  
+      // Animate dashed border
+      animateDashedBorder() {
+        this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+  
+        if (this.selectedArea) {
+          this.overlayCtx.setLineDash([8, 4]);
+          this.overlayCtx.lineDashOffset = this.dashOffset;
+          this.overlayCtx.strokeStyle = 'black';
+  
+          const x = this.selectedArea.x1 * this.cellSize;
+          const y = this.selectedArea.y1 * this.cellSize;
+          const width = (this.selectedArea.x2 - this.selectedArea.x1 + 1) * this.cellSize;
+          const height = (this.selectedArea.y2 - this.selectedArea.y1 + 1) * this.cellSize;
+  
+          this.overlayCtx.strokeRect(x, y, width, height);
+        }
+  
+        if (this.hoveredCell) {
+          this.overlayCtx.setLineDash([]);
+          this.overlayCtx.strokeStyle = 'grey';
+          this.overlayCtx.strokeRect(this.hoveredCell.x * this.cellSize, this.hoveredCell.y * this.cellSize, this.cellSize, this.cellSize);
+        }
+  
+        this.dashOffset += 1;
+  
+        if (this.isAnimationRunning) {
+          requestAnimationFrame(() => this.animateDashedBorder());
+        }
+      }
+  
+      // Display information about a selected area
+      displaySelectionInfo(x1, y1, x2, y2) {
+        let liveCells = 0, deadCells = 0, totalEnergy = 0, totalAge = 0;
+        let totalSurvivalRules = 0, totalBirthRules = 0, totalMoveRules = 0;
+  
+        for (let y = y1; y <= y2; y++) {
+          for (let x = x1; x <= x2; x++) {
+            const cell = this.currentGrid[y][x];
+            if (cell.state === 1) {
+              liveCells++;
+              totalEnergy += cell.energy;
+              totalAge += cell.age;
+              totalSurvivalRules += cell.genome.survivalRules.length;
+              totalBirthRules += cell.genome.birth.length;
+              totalMoveRules += cell.genome.moveRules.length;
+            } else {
+              deadCells++;
+              totalEnergy += cell.energyLeft;
             }
           }
-          this.drawGrid(this.currentGrid);
         }
-
-        // Synchronize nextGrid with currentGrid
-        this.nextGrid = JSON.parse(JSON.stringify(this.currentGrid));
-
-        this.isDragging = false;
-        this.draggedArea = null;
-        this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-      }
-    }
-
-    // Handle click on the game canvas
-    handleClick(event) {
-      const rect = this.gameCanvas.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
-
-      const cellX = Math.floor(mouseX / this.cellSize);
-      const cellY = Math.floor(mouseY / this.cellSize);
-
-      if (this.selectedCell && this.selectedCell.x === cellX && this.selectedCell.y === cellY) {
-        this.clearSelection();
-        this.infoDiv.style.display = 'none';
-      } else {
-        this.selectedCell = { x: cellX, y: cellY };
-        this.displayCellInfo(cellX, cellY);
-        this.infoDiv.style.display = 'inline-block';
-        this.startAnimation();
-      }
-
-      this.drawGrid(this.currentGrid);
-    }
-
-    // Handle mouse out from the game canvas
-    handleMouseOut() {
-      this.hoveredCell = null;
-      this.overlayCtx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
-    }
-
-    // Clear selection
-    clearSelection() {
-      this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-      this.selectedCell = null;
-      this.selectedArea = null;
-      this.isAreaSelected = false;
-      this.stopAnimation();
-
-      this.CellInfoContent.innerHTML = '';
-      this.survivalColumn.innerHTML = '';
-      this.birthColumn.innerHTML = '';
-      this.moveColumn.innerHTML = '';
-
-      this.infoDiv.style.display = 'none';
-    }
-
-    // Start dashed border animation
-    startAnimation() {
-      if (!this.isAnimationRunning) {
-        this.isAnimationRunning = true;
-        this.idAnim = requestAnimationFrame(() => this.animateDashedBorder());
-      }
-    }
-
-    // Stop dashed border animation
-    stopAnimation() {
-      this.isAnimationRunning = false;
-      cancelAnimationFrame(this.idAnim);
-      this.idAnim = null;
-    }
-
-    // Animate dashed border
-    animateDashedBorder() {
-      this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
-
-      if (this.selectedArea) {
-        this.overlayCtx.setLineDash([8, 4]);
-        this.overlayCtx.lineDashOffset = this.dashOffset;
-        this.overlayCtx.strokeStyle = 'black';
-
-        const x = this.selectedArea.x1 * this.cellSize;
-        const y = this.selectedArea.y1 * this.cellSize;
-        const width = (this.selectedArea.x2 - this.selectedArea.x1 + 1) * this.cellSize;
-        const height = (this.selectedArea.y2 - this.selectedArea.y1 + 1) * this.cellSize;
-
-        this.overlayCtx.strokeRect(x, y, width, height);
-      }
-
-      if (this.hoveredCell) {
-        this.overlayCtx.setLineDash([]);
-        this.overlayCtx.strokeStyle = 'grey';
-        this.overlayCtx.strokeRect(this.hoveredCell.x * this.cellSize, this.hoveredCell.y * this.cellSize, this.cellSize, this.cellSize);
-      }
-
-      this.dashOffset += 1;
-
-      if (this.isAnimationRunning) {
-        requestAnimationFrame(() => this.animateDashedBorder());
-      }
-    }
-
-    // Display information about a selected area
-    displaySelectionInfo(x1, y1, x2, y2) {
-      let liveCells = 0, deadCells = 0, totalEnergy = 0, totalAge = 0;
-      let totalSurvivalRules = 0, totalBirthRules = 0, totalMoveRules = 0;
-
-      for (let y = y1; y <= y2; y++) {
-        for (let x = x1; x <= x2; x++) {
-          const cell = this.currentGrid[y][x];
-          if (cell.state === 1) {
-            liveCells++;
-            totalEnergy += cell.energy;
-            totalAge += cell.age;
-            totalSurvivalRules += cell.genome.survivalRules.length;
-            totalBirthRules += cell.genome.birth.length;
-            totalMoveRules += cell.genome.moveRules.length;
-          } else {
-            deadCells++;
-            totalEnergy += cell.energyLeft;
-          }
-        }
-      }
-
-      const averageAge = liveCells > 0 ? (totalAge / liveCells).toFixed(2) : 'N/A';
-      const totalRules = totalSurvivalRules + totalBirthRules + totalMoveRules;
-
-      document.getElementsByClassName('CellInfoTitle')[0].innerHTML = '🔲 Sélection';
-
-      const headerTable = `
-        <table width="100%">
-          <tr><td>Surface</td><td> ${(Math.abs(x1 - x2) + 1) * (Math.abs(y1 - y2) + 1)} cases</td></tr>
-          <tr><td>Population</td><td>${liveCells} ${liveCells > 0 ? '🟥' : ''}</td></tr>
-          <tr><td>Âge Moyen</td><td>${averageAge}</td></tr>
-          <tr><td>Énergie</td><td>${totalEnergy.toFixed(2)} </td></tr>
-          <tr><td>Codes</td><td>${totalRules}</td></tr>
-        </table>
-      `;
-      this.CellInfoContent.innerHTML = headerTable;
-
-      this.cellProxy.innerHTML = '';
-      this.genomeInfo.style.display = 'none';
-
-      if (liveCells > 0 || totalEnergy > 0) {
-        this.copyButton.style.display = 'block';
-      } else {
-        this.copyButton.style.display = 'none';
-      }
-    }
-
-    // Display information about a selected cell
-    displayCellInfo(x, y) {
-      if (this.isAreaSelected) {
-        return;
-      }
-
-      const cell = this.currentGrid[y][x];
-
-      this.CellInfoContent.innerHTML = '';
-      this.cellProxy.innerHTML = '';
-      this.survivalColumn.innerHTML = '';
-      this.birthColumn.innerHTML = '';
-      this.moveColumn.innerHTML = '';
-
-      const neighborsCount = this.countAliveNeighbors(this.currentGrid, x, y);
-
-      let stateText = cell.state === 1 ? '🟥 Cellule vivante' : (cell.energyLeft > 0 ? '🟩️ Nourriture' : 'Vide');
-      let ageText = cell.state === 1 ? cell.age : '';
-      let energyText = cell.state === 1 ? cell.energy : cell.energyLeft;
-
-      document.getElementsByClassName('CellInfoTitle')[0].innerHTML = '🚩 Emplacement';
-
-      const headerTable = `
-        <table width="100%">
-          <tr><td>Position</td><td>(${x}, ${y})</td></tr>
-          <tr><td>Type</td><td>${stateText}</td></tr>
-          <tr><td>Âge</td><td>${ageText}</td></tr>
-          <tr><td>Énergie</td><td>${energyText.toFixed(2)}</td></tr>
-          <tr><td>Voisins</td><td>${neighborsCount}</td></tr>
-        </table>
-      `;
-      this.CellInfoContent.innerHTML = headerTable;
-
-      if (cell.state === 1 && cell.genome) {
-        this.genomeInfo.style.display = 'block';
-
-        this.appendGenomeElements(this.survivalColumn, cell.genome.survivalRules, 'survival', 'S');
-        this.appendGenomeElements(this.birthColumn, cell.genome.birth, 'birth', 'B');
-
-        if (cell.genome.moveRules[0]) {
-          document.getElementById('moveSection').style.display = 'block';
-          this.appendGenomeElements(this.moveColumn, cell.genome.moveRules, 'move', 'M', this.getArrowForDirection);
-        } else {
-          document.getElementById('moveSection').style.display = 'none';
-        }
-      } else {
+  
+        const averageAge = liveCells > 0 ? (totalAge / liveCells).toFixed(2) : 'N/A';
+        const totalRules = totalSurvivalRules + totalBirthRules + totalMoveRules;
+  
+        document.getElementsByClassName('CellInfoTitle')[0].innerHTML = '🔲 Sélection';
+  
+        const headerTable = `
+          <table width="100%">
+            <tr><td>Surface</td><td> ${(Math.abs(x1 - x2) + 1) * (Math.abs(y1 - y2) + 1)} cases</td></tr>
+            <tr><td>Population</td><td>${liveCells} ${liveCells > 0 ? '🟥' : ''}</td></tr>
+            <tr><td>Âge Moyen</td><td>${averageAge}</td></tr>
+            <tr><td>Énergie</td><td>${totalEnergy.toFixed(2)} </td></tr>
+            <tr><td>Codes</td><td>${totalRules}</td></tr>
+          </table>
+        `;
+        this.CellInfoContent.innerHTML = headerTable;
+  
+        this.cellProxy.innerHTML = '';
         this.genomeInfo.style.display = 'none';
+  
+        if (liveCells > 0 || totalEnergy > 0) {
+          this.copyButton.style.display = 'block';
+        } else {
+          this.copyButton.style.display = 'none';
+        }
       }
-
-      this.displayBirthCompetition(x, y, neighborsCount);
-    }
-
-    // Display competition for birth
-    displayBirthCompetition(x, y, neighborsCount) {
-      const cellProxy = this.cellProxy;
-
-      const neighbors = this.getAliveNeighbors(this.currentGrid, x, y);
-      const compatibleNeighbors = neighbors.filter(cell => cell.genome.birth.includes(neighborsCount));
-
-      if (compatibleNeighbors.length > 0) {
-        cellProxy.innerHTML = '';
-        cellProxy.style.display = 'block';
-
-        const competitionTitle = document.createElement('div');
-        competitionTitle.innerHTML = '<strong>Compétition pour l\'emplacement</strong>';
-        cellProxy.appendChild(competitionTitle);
-
-        compatibleNeighbors.forEach((neighbor, index) => {
-          const neighborX = (x + (index % 3) - 1 + this.gridSize) % this.gridSize;
-          const neighborY = (y + Math.floor(index / 3) - 1 + this.gridSize) % this.gridSize;
-
-          const neighborDiv = document.createElement('div');
-          neighborDiv.innerHTML = `(${neighborX}, ${neighborY}) : `;
-          neighborDiv.style.display = 'inline-block';
-
-          neighbor.genome.birth.forEach(birthRule => {
-            const birthDiv = document.createElement('div');
-            birthDiv.textContent = `B${birthRule}`;
-            birthDiv.classList.add('gene-small', 'birth');
-            neighborDiv.appendChild(birthDiv);
+  
+      // Display information about a selected cell
+      displayCellInfo(x, y) {
+        if (this.isAreaSelected) {
+          return;
+        }
+  
+        const cell = this.currentGrid[y][x];
+  
+        this.CellInfoContent.innerHTML = '';
+        this.cellProxy.innerHTML = '';
+        this.survivalColumn.innerHTML = '';
+        this.birthColumn.innerHTML = '';
+        this.moveColumn.innerHTML = '';
+  
+        const neighborsCount = this.countAliveNeighbors(this.currentGrid, x, y);
+  
+        let stateText = cell.state === 1 ? '🟥 Living cell' : (cell.energyLeft > 0 ? '🟩️ Energy' : 'Vide');
+        let ageText = cell.state === 1 ? cell.age : '';
+        let energyText = cell.state === 1 ? cell.energy : cell.energyLeft;
+  
+        document.getElementsByClassName('CellInfoTitle')[0].innerHTML = '🚩 Location';
+  
+        const headerTable = `
+          <table width="100%">
+            <tr><td>Position</td><td>(${x}, ${y})</td></tr>
+            <tr><td>Type</td><td>${stateText}</td></tr>
+            <tr><td>Age</td><td>${ageText}</td></tr>
+            <tr><td>Energy</td><td>${energyText.toFixed(2)}</td></tr>
+            <tr><td>Neighbors</td><td>${neighborsCount}</td></tr>
+          </table>
+        `;
+        this.CellInfoContent.innerHTML = headerTable;
+  
+        if (cell.state === 1 && cell.genome) {
+          this.genomeInfo.style.display = 'block';
+  
+          this.appendGenomeElements(this.survivalColumn, cell.genome.survivalRules, 'survival', 'S');
+          this.appendGenomeElements(this.birthColumn, cell.genome.birth, 'birth', 'B');
+  
+          if (cell.genome.moveRules[0]) {
+            document.getElementById('moveSection').style.display = 'block';
+            this.appendGenomeElements(this.moveColumn, cell.genome.moveRules, 'move', 'M', this.getArrowForDirection);
+          } else {
+            document.getElementById('moveSection').style.display = 'none';
+          }
+        } else {
+          this.genomeInfo.style.display = 'none';
+        }
+  
+        this.displayBirthCompetition(x, y, neighborsCount);
+      }
+  
+      // Display competition for birth
+      displayBirthCompetition(x, y, neighborsCount) {
+        const cellProxy = this.cellProxy;
+  
+        const neighbors = this.getAliveNeighbors(this.currentGrid, x, y);
+        const compatibleNeighbors = neighbors.filter(cell => cell.genome.birth.includes(neighborsCount));
+  
+        if (compatibleNeighbors.length > 0) {
+          cellProxy.innerHTML = '';
+          cellProxy.style.display = 'block';
+  
+          const competitionTitle = document.createElement('div');
+          competitionTitle.innerHTML = '<strong>Compétition pour l\'emplacement</strong>';
+          cellProxy.appendChild(competitionTitle);
+  
+          compatibleNeighbors.forEach((neighbor, index) => {
+            const neighborX = (x + (index % 3) - 1 + this.gridSize) % this.gridSize;
+            const neighborY = (y + Math.floor(index / 3) - 1 + this.gridSize) % this.gridSize;
+  
+            const neighborDiv = document.createElement('div');
+            neighborDiv.innerHTML = `(${neighborX}, ${neighborY}) : `;
+            neighborDiv.style.display = 'inline-block';
+  
+            neighbor.genome.birth.forEach(birthRule => {
+              const birthDiv = document.createElement('div');
+              birthDiv.textContent = `B${birthRule}`;
+              birthDiv.classList.add('gene-small', 'birth');
+              neighborDiv.appendChild(birthDiv);
+            });
+  
+            cellProxy.appendChild(neighborDiv);
           });
-
-          cellProxy.appendChild(neighborDiv);
+        } else {
+          cellProxy.style.display = 'none';
+        }
+      }
+  
+      // Append genome elements
+      appendGenomeElements(container, rules, className, prefix, formatFn = (r) => r) {
+        rules.forEach(rule => {
+          this.appendGenomeElement(container, formatFn(rule), className, prefix);
         });
-      } else {
-        cellProxy.style.display = 'none';
       }
-    }
-
-    // Append genome elements
-    appendGenomeElements(container, rules, className, prefix, formatFn = (r) => r) {
-      rules.forEach(rule => {
-        this.appendGenomeElement(container, formatFn(rule), className, prefix);
-      });
-    }
-
-    // Append a single genome element
-    appendGenomeElement(container, value, className, prefix) {
-      const elementDiv = document.createElement('div');
-      elementDiv.textContent = `${prefix}${value}`;
-      elementDiv.classList.add('gene', className);
-      container.appendChild(elementDiv);
-    }
-
-    // Get arrow representation for direction
-    getArrowForDirection(dir) {
-      switch (dir) {
-        case 1: return '↑';
-        case 2: return '↓';
-        case 3: return '→';
-        case 4: return '←';
-        default: return '?';
+  
+      // Append a single genome element
+      appendGenomeElement(container, value, className, prefix) {
+        const elementDiv = document.createElement('div');
+        elementDiv.textContent = `${prefix}${value}`;
+        elementDiv.classList.add('gene', className);
+        container.appendChild(elementDiv);
       }
-    }
-
-    // Copy the selected area
-    copySelectedArea() {
-      if (!this.selectedArea) return;
-
-      const { x1, y1, x2, y2 } = this.selectedArea;
-
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-
-      const width = (x2 - x1 + 1) * this.cellSize;
-      const height = (y2 - y1 + 1) * this.cellSize;
-      tempCanvas.width = width;
-      tempCanvas.height = height;
-
-      this.clearSelection();
-
-      tempCtx.drawImage(
-        this.gameCanvas,
-        x1 * this.cellSize, y1 * this.cellSize, width, height,
-        0, 0, width, height
-      );
-
-      const img = new Image();
-      img.src = tempCanvas.toDataURL();
-      img.style.width = '50px';
-      img.style.height = '50px';
-      img.style.margin = '5px';
-      img.style.cursor = 'pointer';
-
-      const imgContainer = document.createElement('div');
-      imgContainer.appendChild(img);
-      imgContainer.style.display = 'inline-block';
-      imgContainer.draggable = true;
-
-      this.copiedAreaDiv.appendChild(imgContainer);
-
-      const gridData = [];
-      for (let y = y1; y <= y2; y++) {
-        const row = [];
-        for (let x = x1; x <= x2; x++) {
-          row.push(JSON.parse(JSON.stringify(this.currentGrid[y][x])));
+  
+      // Get arrow representation for direction
+      getArrowForDirection(dir) {
+        switch (dir) {
+          case 1: return '↑';
+          case 2: return '↓';
+          case 3: return '→';
+          case 4: return '←';
+          default: return '?';
         }
-        gridData.push(row);
       }
-
-      const copiedData = {
-        x1, y1, x2, y2,
-        image: img.src,
-        aliveCount: this.countAliveCells(x1, y1, x2, y2),
-        totalEnergy: this.calculateTotalEnergy(x1, y1, x2, y2),
-        width: x2 - x1 + 1,
-        height: y2 - y1 + 1,
-        gridData
-      };
-      this.copiedAreas.push(copiedData);
-
-      imgContainer.addEventListener('mousedown', (event) => {
-        event.preventDefault();
+  
+      // Copy the selected area
+      copySelectedArea() {
+        if (!this.selectedArea) return;
+  
+        const { x1, y1, x2, y2 } = this.selectedArea;
+  
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+  
+        const width = (x2 - x1 + 1) * this.cellSize;
+        const height = (y2 - y1 + 1) * this.cellSize;
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+  
         this.clearSelection();
-        this.draggedArea = copiedData;
-        this.isDragging = true;
-      });
-    }
-
-    // Count alive cells in an area
-    countAliveCells(x1, y1, x2, y2) {
-      let aliveCount = 0;
-      for (let y = y1; y <= y2; y++) {
-        for (let x = x1; x <= x2; x++) {
-          if (this.currentGrid[y][x].state === 1) {
-            aliveCount++;
+  
+        tempCtx.drawImage(
+          this.gameCanvas,
+          x1 * this.cellSize, y1 * this.cellSize, width, height,
+          0, 0, width, height
+        );
+  
+        const img = new Image();
+        img.src = tempCanvas.toDataURL();
+        img.style.width = '50px';
+        img.style.height = '50px';
+        img.style.margin = '5px';
+        img.style.cursor = 'pointer';
+  
+        const imgContainer = document.createElement('div');
+        imgContainer.appendChild(img);
+        imgContainer.style.display = 'inline-block';
+        imgContainer.draggable = true;
+  
+        this.copiedAreaDiv.appendChild(imgContainer);
+  
+        const gridData = [];
+        for (let y = y1; y <= y2; y++) {
+          const row = [];
+          for (let x = x1; x <= x2; x++) {
+            //row.push(JSON.parse(JSON.stringify(this.currentGrid[y][x])));
+            row.push(this.deepCloneCell(this.currentGrid[y][x]));
+          }
+          gridData.push(row);
+        }
+  
+        const copiedData = {
+          x1, y1, x2, y2,
+          image: img.src,
+          aliveCount: this.countAliveCells(x1, y1, x2, y2),
+          totalEnergy: this.calculateTotalEnergy(x1, y1, x2, y2),
+          width: x2 - x1 + 1,
+          height: y2 - y1 + 1,
+          gridData
+        };
+        this.copiedAreas.push(copiedData);
+  
+        imgContainer.addEventListener('mousedown', (event) => {
+          event.preventDefault();
+          this.clearSelection();
+          this.draggedArea = copiedData;
+          this.isDragging = true;
+        });
+      }
+  
+      // Count alive cells in an area
+      countAliveCells(x1, y1, x2, y2) {
+        let aliveCount = 0;
+        for (let y = y1; y <= y2; y++) {
+          for (let x = x1; x <= x2; x++) {
+            if (this.currentGrid[y][x].state === 1) {
+              aliveCount++;
+            }
           }
         }
+        return aliveCount;
       }
-      return aliveCount;
-    }
-
-    // Calculate total energy in an area
-    calculateTotalEnergy(x1, y1, x2, y2) {
-      let totalEnergy = 0;
-      for (let y = y1; y <= y2; y++) {
-        for (let x = x1; x <= x2; x++) {
-          const cell = this.currentGrid[y][x];
-          if (cell.state === 1) {
-            totalEnergy += cell.energy;
-          } else if (cell.state === 0 && cell.energyLeft > 0) {
-            totalEnergy += cell.energyLeft;
+  
+      // Calculate total energy in an area
+      calculateTotalEnergy(x1, y1, x2, y2) {
+        let totalEnergy = 0;
+        for (let y = y1; y <= y2; y++) {
+          for (let x = x1; x <= x2; x++) {
+            const cell = this.currentGrid[y][x];
+            if (cell.state === 1) {
+              totalEnergy += cell.energy;
+            } else if (cell.state === 0 && cell.energyLeft > 0) {
+              totalEnergy += cell.energyLeft;
+            }
           }
         }
+        return totalEnergy;
       }
-      return totalEnergy;
-    }
-
-    // Handle mousedown on copied areas
-    handleCopiedAreaMouseDown(event) {
-      if (event.target.tagName === 'IMG') {
-        const index = [...event.target.parentElement.parentElement.children].indexOf(event.target.parentElement);
-        this.draggedArea = this.copiedAreas[index];
-        this.isDragging = true;
-      }
-    }
-
-    // Define genomes for cell types
-    defineGenomes() {
-      this.genomeTypes = {
-        1: () => ({ survivalRules: [2, 3], birth: [3], moveRules: [] }),
-        2: () => ({ survivalRules: [2, 3], birth: [3], moveRules: [1, 1, 3, 3] }),
-        3: () => ({ survivalRules: [2, 3], birth: [4], moveRules: [1, 1, 3, 3] }),
-        4: () => ({ survivalRules: [3, 4], birth: [3, 4], moveRules: [] }),
-        5: () => ({ survivalRules: [2, 4], birth: [2], moveRules: [] }),
-      };
-    }
-
-    // Get genome based on cell type
-    getGenome(type) {
-      return this.genomeTypes[type] ? this.genomeTypes[type]() : this.generateRandomGenome();
-    }
-
-    // Define patterns and store them in an array
-    definePatterns() {
-      this.patterns = [
-        {
-          name: 'Pattern 1',
-          data: [
-            [0, 1, 1],
-            [1, 0, 1],
-            [1, 0, 1],
-            [0, 1, 0]
-          ]
-        },
-        {
-          name: 'Pattern 2',
-          data: [
-            [1, 0, 0],
-            [1, 0, 1],
-            [1, 1, 0]
-          ]
-        },
-        {
-          name: 'Pattern 3',
-          data: [
-            [3, 3],
-            [3, 3]
-          ]
-        },
-        {
-          name: 'Pattern 4',
-          data: [
-            [0, 0, 0, 1, 0],
-            [0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 1],
-            [0, 1, 1, 1, 1]
-          ]
-        },
-        {
-          name: 'Pattern 5',
-          data: [
-            [1, 1, 1, 0, 0, 0],
-            [0, 1, 0, 1, 1, 1],
-            [1, 1, 0, 1, 1, 0],
-            [1, 1, 0, 1, 1, 0],
-            [0, 0, 1, 0, 0, 0]
-          ]
-        },
-        {
-          name: 'Pattern 6',
-          data: [
-            [1, 4, 5, 5, 4, 1]
-          ]
-        },
-        {
-          name: 'Pattern 7',
-          data: [
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1],
-            [0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0],
-            [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-            [0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0],
-            [1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]
-          ]
-        },
-        {
-          name: 'Pattern 8',
-          data: [
-            [0, 1, 1, 0, 0, 0],
-            [0, 0, 0, 1, 1, 0],
-            [1, 1, 0, 0, 0, 0],
-            [0, 0, 1, 1, 1, 0]
-          ]
+  
+      // Handle mousedown on copied areas
+      handleCopiedAreaMouseDown(event) {
+        if (event.target.tagName === 'IMG') {
+          const index = [...event.target.parentElement.parentElement.children].indexOf(event.target.parentElement);
+          this.draggedArea = this.copiedAreas[index];
+          this.isDragging = true;
         }
-      ];
-    }
-
-    // Preload patterns into copied area div
-    preloadPatterns() {
-      this.patterns.forEach(pattern => {
-        this.preloadPattern(pattern.data, pattern.name);
-      });
-    }
-
-    // Preload a pattern
-    preloadPattern(motif, patternName) {
-      const width = motif[0].length;
-      const height = motif.length;
-
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCanvas.width = width * this.cellSize;
-      tempCanvas.height = height * this.cellSize;
-
-      const gridData = [];
-      for (let y = 0; y < height; y++) {
-        const row = [];
-        for (let x = 0; x < width; x++) {
-          const cellType = motif[y][x];
-          const cell = {
-            state: (cellType > 0 ? 1 : 0),
-            genome: cellType > 0 ? this.getGenome(cellType) : null,
-            energy: cellType > 0 ? 100 : 0,
-            age: cellType > 0 ? 0 : -1,
-            energyLeft: 0
-          };
-          row.push(cell);
-
-          if (cell.state === 1) {
-            tempCtx.fillStyle = cell.genome.moveRules.length > 0 ? 'orange' : 'red';
-            tempCtx.fillRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize);
+      }
+  
+      // Define genomes for cell types
+      defineGenomes() {
+        this.genomeTypes = {
+          1: () => ({ survivalRules: [2, 3], birth: [3], moveRules: [] }),
+          2: () => ({ survivalRules: [2, 3], birth: [3], moveRules: [1, 1, 3, 3] }),
+          3: () => ({ survivalRules: [2, 3], birth: [4], moveRules: [1, 1, 3, 3] }),
+          4: () => ({ survivalRules: [3, 4], birth: [3, 4], moveRules: [] }),
+          5: () => ({ survivalRules: [2, 4], birth: [2], moveRules: [] }),
+        };
+      }
+  
+      // Get genome based on cell type
+      getGenome(type) {
+        return this.genomeTypes[type] ? this.genomeTypes[type]() : this.generateRandomGenome();
+      }
+  
+      // Define patterns and store them in an array
+      definePatterns() {
+        this.patterns = [
+          {
+            name: 'Pattern 1',
+            data: [
+              [0, 1, 1],
+              [1, 0, 1],
+              [1, 0, 1],
+              [0, 1, 0]
+            ]
+          },
+          {
+            name: 'Pattern 2',
+            data: [
+              [1, 0, 0],
+              [1, 0, 1],
+              [1, 1, 0]
+            ]
+          },
+          {
+            name: 'Pattern 3',
+            data: [
+              [3, 3],
+              [3, 3]
+            ]
+          },
+          {
+            name: 'Pattern 4',
+            data: [
+              [0, 0, 0, 1, 0],
+              [0, 0, 0, 0, 1],
+              [1, 0, 0, 0, 1],
+              [0, 1, 1, 1, 1]
+            ]
+          },
+          {
+            name: 'Pattern 5',
+            data: [
+              [1, 1, 1, 0, 0, 0],
+              [0, 1, 0, 1, 1, 1],
+              [1, 1, 0, 1, 1, 0],
+              [1, 1, 0, 1, 1, 0],
+              [0, 0, 1, 0, 0, 0]
+            ]
+          },
+          {
+            name: 'Pattern 6',
+            data: [
+              [1, 4, 5, 5, 4, 1]
+            ]
+          },
+          {
+            name: 'Pattern 7',
+            data: [
+              [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+              [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+              [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1],
+              [0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0],
+              [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+              [0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0],
+              [1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+              [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+              [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]
+            ]
+          },
+          {
+            name: 'Pattern 8',
+            data: [
+              [0, 1, 1, 0, 0, 0],
+              [0, 0, 0, 1, 1, 0],
+              [1, 1, 0, 0, 0, 0],
+              [0, 0, 1, 1, 1, 0]
+            ]
           }
+        ];
+      }
+  
+      // Preload patterns into copied area div
+      preloadPatterns() {
+        this.patterns.forEach(pattern => {
+          this.preloadPattern(pattern.data, pattern.name);
+        });
+      }
+  
+      // Preload a pattern
+      preloadPattern(motif, patternName) {
+        const width = motif[0].length;
+        const height = motif.length;
+  
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCanvas.width = width * this.cellSize;
+        tempCanvas.height = height * this.cellSize;
+  
+        const gridData = [];
+        for (let y = 0; y < height; y++) {
+          const row = [];
+          for (let x = 0; x < width; x++) {
+            const cellType = motif[y][x];
+            const cell = {
+              state: (cellType > 0 ? 1 : 0),
+              genome: cellType > 0 ? this.getGenome(cellType) : null,
+              energy: cellType > 0 ? 100 : 0,
+              age: cellType > 0 ? 0 : -1,
+              energyLeft: 0
+            };
+            row.push(cell);
+  
+            if (cell.state === 1) {
+              tempCtx.fillStyle = cell.genome.moveRules.length > 0 ? 'orange' : 'red';
+              tempCtx.fillRect(x * this.cellSize, y * this.cellSize, this.cellSize, this.cellSize);
+            }
+          }
+          gridData.push(row);
         }
-        gridData.push(row);
+  
+        const img = new Image();
+        img.src = tempCanvas.toDataURL();
+        img.style.width = '50px';
+        img.style.height = '50px';
+        img.style.margin = '5px';
+        img.style.cursor = 'pointer';
+        img.title = patternName;
+  
+        const imgContainer = document.createElement('div');
+        imgContainer.appendChild(img);
+        imgContainer.style.display = 'inline-block';
+        imgContainer.draggable = true;
+  
+        this.copiedAreaDiv.appendChild(imgContainer);
+  
+        const copiedData = {
+          x1: 0,
+          y1: 0,
+          x2: width - 1,
+          y2: height - 1,
+          image: img.src,
+          aliveCount: motif.flat().filter(cell => cell > 0).length,
+          totalEnergy: motif.flat().filter(cell => cell > 0).length * 100,
+          width: width,
+          height: height,
+          gridData
+        };
+        this.copiedAreas.push(copiedData);
+  
+        imgContainer.addEventListener('mousedown', (event) => {
+          event.preventDefault();
+          this.draggedArea = copiedData;
+          this.isDragging = true;
+        });
       }
-
-      const img = new Image();
-      img.src = tempCanvas.toDataURL();
-      img.style.width = '50px';
-      img.style.height = '50px';
-      img.style.margin = '5px';
-      img.style.cursor = 'pointer';
-      img.title = patternName;
-
-      const imgContainer = document.createElement('div');
-      imgContainer.appendChild(img);
-      imgContainer.style.display = 'inline-block';
-      imgContainer.draggable = true;
-
-      this.copiedAreaDiv.appendChild(imgContainer);
-
-      const copiedData = {
-        x1: 0,
-        y1: 0,
-        x2: width - 1,
-        y2: height - 1,
-        image: img.src,
-        aliveCount: motif.flat().filter(cell => cell > 0).length,
-        totalEnergy: motif.flat().filter(cell => cell > 0).length * 100,
-        width: width,
-        height: height,
-        gridData
-      };
-      this.copiedAreas.push(copiedData);
-
-      imgContainer.addEventListener('mousedown', (event) => {
-        event.preventDefault();
-        this.draggedArea = copiedData;
-        this.isDragging = true;
-      });
-    }
-
-    openResetModal() {
-      // Mettre à jour l'affichage du seed actuel
-      this.currentSeedOption.textContent = this.seed;
-
-      // Sélectionner l'option appropriée
-      if (!isNaN(this.seed) && this.seed !== "") {
-        document.getElementById('currentOption').checked = true;
-      } else {
-        document.getElementById('randomOption').checked = true;
+  
+      openResetModal() {
+        // Mettre à jour l'affichage du seed actuel
+        this.currentSeedOption.textContent = this.seed;
+  
+        // Sélectionner l'option appropriée
+        if (!isNaN(this.seed) && this.seed !== "") {
+          document.getElementById('currentOption').checked = true;
+        } else {
+          document.getElementById('randomOption').checked = true;
+        }
+  
+        // Afficher la modale
+        this.resetModal.style.display = 'flex';
       }
-
-      // Afficher la modale
-      this.resetModal.style.display = 'flex';
-    }
-
-    closeResetModal() {
-      // Cacher la modale
-      this.resetModal.style.display = 'none';
-    }
-
-    applyReset() {
-      const selectedOption = this.resetForm.querySelector('input[name="seedOption"]:checked').value;
-
-      if (selectedOption === 'random') {
-        // Seed aléatoire
-        this.seed = Math.floor(Math.random() * 100000);
-        document.getElementById('seed').value = this.seed;
-        this.initGame();
-      } else if (selectedOption === 'current') {
-        // Utiliser le seed actuel
-        this.seed = parseInt(this.currentSeedOption.textContent, 10);
-        document.getElementById('seed').value = this.seed;
-        this.initGame();
-      } else {
-        // Charger un monde préenregistré
-        const worldId = parseInt(selectedOption, 10);
-        const world = this.worlds[worldId];
-        if (world) {
-          this.seed = world.name;
+  
+      closeResetModal() {
+        // Cacher la modale
+        this.resetModal.style.display = 'none';
+      }
+  
+      applyReset() {
+        const selectedOption = this.resetForm.querySelector('input[name="seedOption"]:checked').value;
+  
+        if (selectedOption === 'random') {
+          // Seed aléatoire
+          this.seed = Math.floor(Math.random() * 100000);
           document.getElementById('seed').value = this.seed;
-          this.initializeGridWithWorld(world.grid);
-          this.drawGrid(this.currentGrid);
+          this.initGame();
+        } else if (selectedOption === 'current') {
+          // Utiliser le seed actuel
+          this.seed = parseInt(this.currentSeedOption.textContent, 10);
+          document.getElementById('seed').value = this.seed;
+          this.initGame();
+        } else {
+          // Charger un monde préenregistré
+          const worldId = parseInt(selectedOption, 10);
+          const world = this.worlds[worldId];
+          if (world) {
+            this.seed = world.name;
+            document.getElementById('seed').value = this.seed;
+            this.initializeGridWithWorld(world.grid);
+            this.drawGrid(this.currentGrid);
+          } else {
+            console.error(`World with ID ${worldId} not found.`);
+          }
         }
+  
+        this.closeResetModal();
       }
-
-      this.closeResetModal();
-    }
-
-    initializeGridWithWorld(grid) {
-      this.currentGrid = this.createGrid(this.gridSize);
-      this.nextGrid = this.createGrid(this.gridSize);
-
-      // Centrer la grille du monde dans la grille actuelle
-      const offsetY = Math.floor((this.gridSize - grid.length) / 2);
-      const offsetX = Math.floor((this.gridSize - grid[0].length) / 2);
-
-      for (let y = 0; y < grid.length; y++) {
-        for (let x = 0; x < grid[0].length; x++) {
-          const newY = y + offsetY;
-          const newX = x + offsetX;
-
-          if (newY >= 0 && newY < this.gridSize && newX >= 0 && newX < this.gridSize) {
-            this.currentGrid[newY][newX] = JSON.parse(JSON.stringify(grid[y][x]));
+  
+      initializeGridWithWorld(grid) {
+        this.currentGrid = this.createGrid(this.gridSize);
+        this.nextGrid = this.createGrid(this.gridSize);
+  
+        // Centrer la grille du monde dans la grille actuelle
+        const offsetY = Math.floor((this.gridSize - grid.length) / 2);
+        const offsetX = Math.floor((this.gridSize - grid[0].length) / 2);
+  
+        for (let y = 0; y < grid.length; y++) {
+          for (let x = 0; x < grid[0].length; x++) {
+            const newY = y + offsetY;
+            const newX = x + offsetX;
+  
+            if (newY >= 0 && newY < this.gridSize && newX >= 0 && newX < this.gridSize) {
+  
+              this.currentGrid[newY][newX].state = grid[y][x];
+  
+              if (grid[y][x] > 0) {
+                this.currentGrid[newY][newX].energy = 100;
+                this.currentGrid[newY][newX].genome = (this.genomeTypes[grid[y][x]] || (() => null))();
+              }
+  
+              //this.currentGrid[newY][newX] = JSON.parse(JSON.stringify(grid[y][x]));
+            }
           }
         }
       }
+  
     }
-
-  }
-
-  // Initialize the game
-  const game = new GameOfLife();
-</script>
+  
+    // Initialize the game
+    const game = new GameOfLife();
+  </script></body>
