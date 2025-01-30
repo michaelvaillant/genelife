@@ -28,15 +28,15 @@ No installation required—simply open the index.html file in a JavaScript-compa
 
 *Technologies Used*
 
-•	HTML5 / CSS3: Structure and styling.
-•	JavaScript (ES6): Manages the simulation and user interactions.
-•	Canvas API: Enables interactive graphical rendering.
-•	Seedrandom.js: Handles random seed generation.
+-	HTML5 / CSS3: Structure and styling.
+-	JavaScript (ES6): Manages the simulation and user interactions.
+-	Canvas API: Enables interactive graphical rendering.
+-	Seedrandom.js: Handles random seed generation.
 
 *Future Improvements*
-•	Adding a multiplayer mode.
-•	Introducing new genes for complex behaviors.
-•	Performance optimization for larger grids.
+-	Adding a multiplayer mode.
+-	Introducing new genes for complex behaviors.
+-	Performance optimization for larger grids.
 
 *Author*
 Project developed by Michael Vaillant.
