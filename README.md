@@ -61,7 +61,7 @@ Cells which does not have "Movement Rules" are 100% compatible with the way the 
 -	Seedrandom.js: Handles random seed generation.
 
 *Future Improvements*
-- Some UX bugs to correct . Actually I need to correct the way the temporary movements are consumed. It was my latest change, and did not have the time to correct. 
+- Some UX bugs to correct . Actually I need to correct the way the temporary movements are consumed. It was my latest change, and did need to be tuned. 
 -	Many ideas to suggest to play with. Like for cells, a way to recognize the cells with similar genetic code and accept reproduction with not so different cells. Add conditional blocs (if) in the genetic code (the genetic code is a stack). 
 -	Introducing new genes for complex behaviors.
 -	Performance optimization for larger grids.
