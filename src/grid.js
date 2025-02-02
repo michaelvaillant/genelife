@@ -1,5 +1,5 @@
 // grid.js
-import { generateRandomGenome } from './genome.js';  // Add this line
+import { generateRandomGenome } from './genome.js'; 
 
 export function createGrid(size) {
   const grid = new Array(size);

@@ -1,5 +1,5 @@
 // ui.js
-
+// import { adjustSpeed } from './ui.js'; 
 
 export function bindEvents(game) {
     document.getElementById('Reset').addEventListener('click', (e) => { game.openResetModal(); e.target.blur(); });
@@ -20,11 +20,11 @@ export function bindEvents(game) {
   
   export function handleKeyDown(game, event) {
     if (event.key === '+') {
-      game.adjustSpeed(1);
+      adjustSpeed(game, 1);
     } else if (event.key === '-') {
-      game.adjustSpeed(-1);
+      adjustSpeed(game, -1);
     } else if (event.code === 'Space') {
-      game.togglePause();
+      togglePause(game);
     }
   }
   
