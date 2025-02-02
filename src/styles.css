@@ -34,6 +34,7 @@ button {cursor:pointer;}
     top: 0; 
     left: 0; 
     pointer-events: none;
+    z-index: 10; 
 }
 
 #infoDiv {
@@ -147,6 +148,7 @@ button {cursor:pointer;}
 #copiedAreaDiv img {
   border: 1px solid #000;
   margin: 1px;
+  object-fit: contain;
 }
 
 #copiedAreaDiv img:hover {
