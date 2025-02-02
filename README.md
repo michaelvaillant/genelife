@@ -6,7 +6,7 @@ This project is an advanced implementation of Conway's "Game of Life," enhanced 
 
 Unlike traditional implementations where the grid determines the rules of reproduction and survival, here, the rules are embedded within the cells themselves. This fundamental shift enables genetic mutations, making the simulation much more flexible and adaptable. It includes an interactive visualization using HTML5 Canvas and offers a simulation system with multiple user controls.
 
-Try it: https://www.u-sphere.com/data/life/life.html
+Try it: [https://www.u-sphere.com/data/life/life.html](https://www.u-sphere.com/projects/genelife/)
 
 *Features*
 -	Game of Life Simulation: Based on Conway's classic rules with evolutionary elements.
