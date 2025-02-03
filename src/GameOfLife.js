@@ -38,7 +38,7 @@ export class GameOfLife {
     this.drawGrid = drawGrid;
 
     // Configuration
-    this.gridSize = config.gridSize || 64;
+    this.gridSize = config.gridSize || 128;
     this.cellSize = this.gameCanvas.width / this.gridSize;
     this.speed = config.speed || 100;
     this.seed = config.seed || Math.floor(Math.random() * 100000);
@@ -48,6 +48,18 @@ export class GameOfLife {
     this.populationCounts = [];
     this.energyCounts = [];
     
+    // Meta-Parameters
+    // 10 / 10 / 5 / 200   => black static labyrinth.    
+    // 10 /  2 / 5 / 200   => black static labyrinth.
+    // 5 / 2 / 1 / 200    => Equilibruum, but no reversal
+
+    this.energyMoveCost = 5;     // Cost in Energy for a move (genome.js)
+    this.energyDieRatio = 2;      // Energy left by a dead cell (simulation.js)
+    this.energyChildRatio = 1;    // Energy left to the child when born (simulation.js)
+    this.energyCellMax = 200;     // Cap Max energy of a Cell (genome.js)
+
+    // A good usage of Reactions rules can create cooperation.
+
     // Grids
     this.currentGrid = createGrid(this.gridSize);
     this.nextGrid = createGrid(this.gridSize);

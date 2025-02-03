@@ -1,5 +1,5 @@
 // grid.js
-import { generateRandomGenome } from './genome.js'; 
+import { generateRandomGenome } from './genome.js';
 
 export function createGrid(size) {
   const grid = new Array(size);
@@ -13,14 +13,15 @@ export function createGrid(size) {
 }
 
 export function createEmptyCell() {
-  return { 
-    age: -1, 
-    state: 0, 
-    genome: null, 
-    energy: 0, 
-    energyLeft: 0,
-    actionRules: Array(8).fill([]),
-    actionValues: Array(8).fill(0)
+  return {
+    age: -1,
+    state: 0,
+    genome: null,
+    energy: 0,
+    energyLeft: 0
+    // ,
+    // actionRules: Array(8).fill([]),
+    // actionValues: Array(8).fill(0)
   };
 }
 
@@ -36,6 +37,11 @@ export function copyGrid(sourceGrid) {
   return newGrid;
 }
 
+// If the genome has arrays of arrays (like actionRules), we can do a deeper copy:
+// const clonedActionRules = cell.genome.actionRules
+//   ? cell.genome.actionRules.map(ruleArr => [...ruleArr]) // each sub-array cloned
+//   : [];
+
 export function deepCloneCell(cell) {
   return {
     age: cell.age,
@@ -43,12 +49,19 @@ export function deepCloneCell(cell) {
     genome: cell.genome ? {
       survivalRules: [...cell.genome.survivalRules],
       birth: [...cell.genome.birth],
-      moveRules: [...cell.genome.moveRules]
+      moveRules: [...cell.genome.moveRules],
+      actionRules: cell.genome.actionRules
+        ? cell.genome.actionRules.map(rule => [...rule])
+        : [],
+      actionValues: cell.genome.actionValues
+        ? [...cell.genome.actionValues]
+        : []
     } : null,
     energy: cell.energy,
     energyLeft: cell.energyLeft
   };
 }
+
 
 export function initializeGrid(grid) {
   for (let y = 0; y < grid.length; y++) {
@@ -89,13 +102,17 @@ export function drawGrid(grid, ctx, cellSize, canvasWidth, canvasHeight) {
       const cell = grid[y][x];
       if (cell.state === 1) {
         const colorValue = Math.max(0, 255 - cell.age);
+
+        const actionColorValue = cell.genome.actionRules.length > 0 ? colorValue : 0;
+
         if (cell.genome && cell.genome.moveRules && cell.genome.moveRules.length > 0) {
           // Use different colors based on genome.birth as an example.
           ctx.fillStyle = cell.genome.birth && cell.genome.birth[0] ?
-            `rgb(${colorValue}, ${colorValue / 2}, 0)` :
-            `rgb(${colorValue}, ${colorValue}, 0)`;
+            `rgb(${colorValue}, ${colorValue / 2}, ${actionColorValue})` :
+            `rgb(${colorValue}, ${colorValue}, ${actionColorValue})`;
         } else {
-          ctx.fillStyle = `rgb(${colorValue}, 0, 0)`;
+          // cell without moveRules
+          ctx.fillStyle = `rgb(${colorValue}, 0, ${actionColorValue})`;
         }
         ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       } else if (cell.state === -1) {

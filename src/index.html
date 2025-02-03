@@ -1,113 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Game of Life with Integrated Genome & Graph</title>
-    <!-- Link to your CSS file -->
-    <link rel="stylesheet" href="styles.css" />
 
-    <!-- Load seedrandom from CDN first -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
-    <!-- Then load your main module -->
-    <script type="module" src="main.js"></script>
+<head>
+  <meta charset="UTF-8" />
+  <title>Game of Life with Integrated Genome & Graph</title>
+  <!-- Link to your CSS file -->
+  <link rel="stylesheet" href="styles.css" />
 
-  </head>
-  <body>
-    <!-- Control Panel -->
-    <div id="controls">
-      <label>
-        Seed:
-        <input id="seed" type="text" value="">
-      </label>
-      <span>
-        Turn: <span id="round">0</span>
-      </span>
-      <label>
-        Wait:
-        <input id="speed" type="text" value="">
-      </label>
-      <label>
-        Board:
-        <select id="board">
-          <option value="16">16</option>
-          <option value="32">32</option>
-          <option value="64" selected>64</option>
-          <option value="128">128</option>
-          <option value="256">256</option>
-        </select>
-      </label>
-      <div class="actions">
-        <button id="clear">Clear</button>
-        <button id="Reset">Reset</button>
-      </div>
+  <!-- Load seedrandom from CDN first -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/seedrandom/3.0.5/seedrandom.min.js"></script>
+  <!-- Then load your main module -->
+  <script type="module" src="main.js"></script>
+
+</head>
+
+<body>
+  <!-- Control Panel -->
+  <div id="controls">
+    <label>
+      Seed:
+      <input id="seed" type="text" value="">
+    </label>
+    <span>
+      Turn: <span id="round">0</span>
+    </span>
+    <label>
+      Wait:
+      <input id="speed" type="text" value=""><label style="font-weight:normal; padding-right:10px;">[+] [-] [SPACE]</label>
+    </label>
+    <label>
+      Board:
+      <select id="board">
+        <option value="16">16</option>
+        <option value="32">32</option>
+        <option value="64" >64</option>
+        <option value="128" selected>128</option>
+        <option value="256">256</option>
+      </select>
+    </label>
+    <div class="actions">
+      <button id="clear">Clear</button>
+      <button id="Reset">Reset</button>
     </div>
+  </div>
 
-    <!-- Game and Overlay Canvases -->
-    <div style="position: relative;">
-      <canvas id="gameCanvas" width="1024" height="1024"></canvas>
-      <canvas id="overlayCanvas" width="1024" height="1024"></canvas>
-      
-      <!-- Info Panel for cell/genome details -->
-      <div id="infoDiv" style="display: none;">
-        <div id="CellInfo">
-          <div class="CellInfoTitle">🚩 Location</div>
-          <div id="CellInfoContent"></div>
-          <div id="cellProxy" style="display: none;"></div>
-        </div>
-        <div id="genomeInfo" style="display: none;">
-          <div class="genomeInfoTitle">🧬 Genome</div>
-          <div class="genomeInfoContent">
-            <div class="genome-section" id="survivalSection">
-              <div class="genome-title">Survival</div>
-              <div class="horizontal-gene" id="survivalColumn"></div>
-            </div>
-            <div class="genome-section" id="birthSection">
-              <div class="genome-title">Birth</div>
-              <div class="horizontal-gene" id="birthColumn"></div>
-            </div>
-            <div class="genome-section" id="moveSection" style="display: none;">
-              <div class="genome-title">Movement</div>
-              <div class="vertical-gene" id="moveColumn"></div>
-            </div>
+  <!-- Game and Overlay Canvases -->
+  <div style="position: relative;">
+    <canvas id="gameCanvas" width="1024" height="1024"></canvas>
+    <canvas id="overlayCanvas" width="1024" height="1024"></canvas>
+
+    <!-- Info Panel for cell/genome details -->
+    <div id="infoDiv" style="display: none;">
+      <div id="CellInfo">
+        <div class="CellInfoTitle">🚩 Location</div>
+        <div id="CellInfoContent"></div>
+        <div id="cellProxy" style="display: none;"></div>
+      </div>
+      <div id="genomeInfo" style="display: none;">
+        <div class="genomeInfoTitle">🧬 Genome</div>
+        <div class="genomeInfoContent">
+          <div class="genome-section" id="survivalSection">
+            <div class="genome-title">Survival</div>
+            <div class="horizontal-gene" id="survivalColumn"></div>
+          </div>
+          <div class="genome-section" id="birthSection">
+            <div class="genome-title">Birth</div>
+            <div class="horizontal-gene" id="birthColumn"></div>
+          </div>
+          <div class="genome-section" id="moveSection" style="display: none;">
+            <div class="genome-title">Movements</div>
+            <div class="vertical-gene" id="moveColumn"></div>
+          </div>
+          <div class="genome-section" id="actionSection" style="display: none;">
+            <div class="genome-title">Reactions</div>
+            <div class="vertical-gene" id="actionColumn"></div>
           </div>
         </div>
-        <button id="copyButton" style="display: none; margin-top: 10px;">Copy</button>
       </div>
+      <button id="copyButton" style="display: none; margin-top: 10px;">Copy</button>
     </div>
+  </div>
 
-    <!-- Reset Modal -->
-    <div id="resetModal" class="modal" style="display: none;">
-      <div class="modal-content">
-        <h2>World Selection</h2>
-        <form id="resetForm">
-          <label>
-            <input type="radio" id="randomOption" name="seedOption" value="random">
-            Random seed
-          </label>
-          <label>
-            <input type="radio" id="currentOption" name="seedOption" value="current">
-            Seed <span id="currentSeedOption"></span>
-          </label>
-          <label>
-            <input type="radio" id="world_0" name="seedOption" value="0">
-            World 1
-          </label>
-          <!-- Additional world options can be added here -->
-        </form>
-        <button id="cancelReset">❌ Cancel</button>
-        <button id="applyReset">✔️ Reset</button>
-      </div>
+  <!-- Reset Modal -->
+  <div id="resetModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <h2>World Selection</h2>
+      <form id="resetForm">
+        <label>
+          <input type="radio" id="randomOption" name="seedOption" value="random">
+          Random seed
+        </label>
+        <label>
+          <input type="radio" id="currentOption" name="seedOption" value="current">
+          Seed <span id="currentSeedOption"></span>
+        </label>
+        <label>
+          <input type="radio" id="world_0" name="seedOption" value="0">
+          World 1
+        </label>
+        <!-- Additional world options can be added here -->
+      </form>
+      <button id="cancelReset">❌ Cancel</button>
+      <button id="applyReset">✔️ Reset</button>
     </div>
+  </div>
 
-    <!-- Graph Canvas -->
-    <canvas id="graphCanvas" width="1024" height="200"></canvas>
-    
-    <!-- Area for displaying copied pattern images -->
-    <div id="copiedAreaDiv">
-      <div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAABACAYAAABcIPRGAAAAAXNSR0IArs4c6QAAAKRJREFUaEPt2kEOgCAMRcH2/ofWxCu8RReOe1A+k4KBnfg8M0/sIjXf1Hq+rzeAEqIZQKj4mRmEEEIoJoBQDFAVQuj3hCqBjat5fn/uwADaD9GaAYQQigkgFANUhRBCKCaAUAxQFUIIoZgAQjFAVQghhGICCMUAVSGEEIoJXBOKByT5uk09Xzg/5DMAhOKVM4QQQqjdGrMOXG/HzYAZiLtZhK4JvX6Wv+G1Q2b2AAAAAElFTkSuQmCC" title="Pattern 1" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAIdJREFUaEPt2cENwDAIBMGj/6ITKS3sM+M/toAFH/Y927Owbrtgnk2PAzLQKIKQIm4EDUIQghApQQulKtBGf99Gs5zPG0Q5nc/PG3AgjrQyACEIxQhAKAZQF4IQhGIEIBQDWLtQmgf3pS/9L+SRkgMyEB+2IAQhCLUqcA+4iRtBpAQtFAmC0AvFnIARpslZlgAAAABJRU5ErkJggg==" title="Pattern 2" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAADFJREFUWEft0EERAAAIw7DhXwc6QcY+qYJe5jaXYmOAAAECBAgQIECAAAECBAgQaAs8AuJUgc6I4SYAAAAASUVORK5CYII=" title="Pattern 3" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABACAYAAACNx/A2AAAAAXNSR0IArs4c6QAAARRJREFUeF7t21EKxCAQRMHx/ofOklyhhGHh7X8rlm2EkD3z579n5pElnJmDeYnvZwPEPQgwQBTAeA0MEAUwXgMDRAGM18AAUQDjNTBAFMB4DQwQBTBeAwNEgeX4hQYvr2B5+gBxAwIMEAUwXgMDRAGM18AAUQDjNTBAFMB4DQwQBTBeAwNEAYzXwG3ACztA39fh+jnO6+cB8ANFFsABeP08QIC7n8higTjOBeIBamANlBqfGogFCjBAOYGvnv3PhAfoEsEdCDBAeQZ0C/cMlP58el0iQhig6M2FBuL8fAR0/u08vwzVI7ANoPMHiIIBBogCGK+BAaIAxmtggCiA8RoYIApgvAYGiAIYr4EBogDGayAC/gBZqp/hv351cgAAAABJRU5ErkJggg==" title="Pattern 4" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABQCAYAAADm4nCVAAAAAXNSR0IArs4c6QAAAblJREFUeF7t3GFuAyEMBWH2/odOtLnCZwlZmf5/DjtjoCxpn885n7P45znnWTz88yTgrr4E3OXfDLjMPwEJQAJtwghQ4wlQgphPAALUeAKUIOYTgAA1ngAliPkEIECNJ0AJYj4BCFDjCVCCmF8vAJ//vUyg+wQFqJ+vz695vsxQAAlAhQkwgM0A48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fp69+O3v46WsefAOzhBOCNHPJ//zyHlvFmABpIQDPAWkg7SK9EbfS/9aclSCFKPgEtQdI/PoVbgow/r6EJSECbMPYAxduE24SpgdoDtm9i28ffuyCbwDyDE5AAe5fSEnS5gxKQgA5i2AMU7yDWQYwaiH+Naw8w/gnY3kHbx99B7PIMTkACOgnT/3rABmoT3r6JbR9/ewBO4U7C20/C2AAc1yVEO5AfAAvQmzz87F88ARMUoUYCAN5ENAETFKFGAgDeRDQBExShRgIA3kQ0ARMUoUYCAN5ENAETFKFGAgDeRDQBExShRgIA3kQ0ARMUoUYCAN5E9N8FfAEexgBAQyCgIQAAAABJRU5ErkJggg==" title="Pattern 5" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAAAQCAYAAADpunr5AAAAAXNSR0IArs4c6QAAAFJJREFUWEft1cEJAEAIxEDtv2gProl8xgYCCYt7MzcuM7ACZO4/WIDWvwCxfwEEqA3EfD9AgNhAjLcAAWIDMd4CBIgNxHgLECA2EOMtQIDYQIx/I8Af8WYOaecAAAAASUVORK5CYII=" title="Pattern 6" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,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" title="Pattern 7" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div><div draggable="true" style="display: inline-block;"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAAAAXNSR0IArs4c6QAAAVtJREFUeF7t20EOwjAUxNDk/odu1TO8L0VRzd5DsQuLAHvh41nrwQnC91qbBg7DfPEFsIIFMH9MF4AV2kABzB/TBWCFNlAA88d0AVihDRTA/DFdAFZoAwUwf0wXgBXaQAHMH9MFYIU2UADzx3QBWKENcAB7eqdvPw4vAN4D+oVQAQpgBvoIMn9MF4AV2kABzB/TBWCFNlAA88d0AVihDRTA/DFdAFZoAwUwf0wXgBXaQAHMH9MFYIU2cH2A21+A5TtP7wKcjVCAs/5XAQpw93+8tF/vADWIfAFQoOIFUIPIFwAFKl4ANYh8AVCg4gVQg8gXAAUqXgA1iHwBUKDiBVCDyB//dfTp43D09x1kkUOC9eI/vgATFmGjACBvAi3AhEXYKADIm0ALMGERNgoA8ibQAkxYhI0CgLwJtAATFmGjACBvAi3AhEXYKADIm0ALMGERNgoA8ibQvwd4AbzUgEFuvMEAAAAAAElFTkSuQmCC" title="Pattern 8" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div>
-    </div>
+  <!-- Graph Canvas -->
+  <canvas id="graphCanvas" width="1024" height="200"></canvas>
 
-    <!-- Load the main module -->
-    <script type="module" src="main.js"></script>
-  </body>
+  <!-- Area for displaying copied pattern images -->
+  <div id="copiedAreaDiv">
+    <div draggable="true" style="display: inline-block;"><img
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAABACAYAAABcIPRGAAAAAXNSR0IArs4c6QAAAKRJREFUaEPt2kEOgCAMRcH2/ofWxCu8RReOe1A+k4KBnfg8M0/sIjXf1Hq+rzeAEqIZQKj4mRmEEEIoJoBQDFAVQuj3hCqBjat5fn/uwADaD9GaAYQQigkgFANUhRBCKCaAUAxQFUIIoZgAQjFAVQghhGICCMUAVSGEEIoJXBOKByT5uk09Xzg/5DMAhOKVM4QQQqjdGrMOXG/HzYAZiLtZhK4JvX6Wv+G1Q2b2AAAAAElFTkSuQmCC"
+        title="Pattern 1" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div>
+    <div draggable="true" style="display: inline-block;"><img
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAAAXNSR0IArs4c6QAAAIdJREFUaEPt2cENwDAIBMGj/6ITKS3sM+M/toAFH/Y927Owbrtgnk2PAzLQKIKQIm4EDUIQghApQQulKtBGf99Gs5zPG0Q5nc/PG3AgjrQyACEIxQhAKAZQF4IQhGIEIBQDWLtQmgf3pS/9L+SRkgMyEB+2IAQhCLUqcA+4iRtBpAQtFAmC0AvFnIARpslZlgAAAABJRU5ErkJggg=="
+        title="Pattern 2" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div>
+    <div draggable="true" style="display: inline-block;"><img
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAADFJREFUWEft0EERAAAIw7DhXwc6QcY+qYJe5jaXYmOAAAECBAgQIECAAAECBAgQaAs8AuJUgc6I4SYAAAAASUVORK5CYII="
+        title="Pattern 3" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div>
+    <div draggable="true" style="display: inline-block;"><img
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABACAYAAACNx/A2AAAAAXNSR0IArs4c6QAAARRJREFUeF7t21EKxCAQRMHx/ofOklyhhGHh7X8rlm2EkD3z579n5pElnJmDeYnvZwPEPQgwQBTAeA0MEAUwXgMDRAGM18AAUQDjNTBAFMB4DQwQBTBeAwNEgeX4hQYvr2B5+gBxAwIMEAUwXgMDRAGM18AAUQDjNTBAFMB4DQwQBTBeAwNEAYzXwG3ACztA39fh+jnO6+cB8ANFFsABeP08QIC7n8higTjOBeIBamANlBqfGogFCjBAOYGvnv3PhAfoEsEdCDBAeQZ0C/cMlP58el0iQhig6M2FBuL8fAR0/u08vwzVI7ANoPMHiIIBBogCGK+BAaIAxmtggCiA8RoYIApgvAYGiAIYr4EBogDGayAC/gBZqp/hv351cgAAAABJRU5ErkJggg=="
+        title="Pattern 4" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div>
+    <div draggable="true" style="display: inline-block;"><img
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABQCAYAAADm4nCVAAAAAXNSR0IArs4c6QAAAblJREFUeF7t3GFuAyEMBWH2/odOtLnCZwlZmf5/DjtjoCxpn885n7P45znnWTz88yTgrr4E3OXfDLjMPwEJQAJtwghQ4wlQgphPAALUeAKUIOYTgAA1ngAliPkEIECNJ0AJYj4BCFDjCVCCmF8vAJ//vUyg+wQFqJ+vz695vsxQAAlAhQkwgM0A48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fpBDBCK5AA48fp69+O3v46WsefAOzhBOCNHPJ//zyHlvFmABpIQDPAWkg7SK9EbfS/9aclSCFKPgEtQdI/PoVbgow/r6EJSECbMPYAxduE24SpgdoDtm9i28ffuyCbwDyDE5AAe5fSEnS5gxKQgA5i2AMU7yDWQYwaiH+Naw8w/gnY3kHbx99B7PIMTkACOgnT/3rABmoT3r6JbR9/ewBO4U7C20/C2AAc1yVEO5AfAAvQmzz87F88ARMUoUYCAN5ENAETFKFGAgDeRDQBExShRgIA3kQ0ARMUoUYCAN5ENAETFKFGAgDeRDQBExShRgIA3kQ0ARMUoUYCAN5E9N8FfAEexgBAQyCgIQAAAABJRU5ErkJggg=="
+        title="Pattern 5" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div>
+    <div draggable="true" style="display: inline-block;"><img
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAAAQCAYAAADpunr5AAAAAXNSR0IArs4c6QAAAFJJREFUWEft1cEJAEAIxEDtv2gProl8xgYCCYt7MzcuM7ACZO4/WIDWvwCxfwEEqA3EfD9AgNhAjLcAAWIDMd4CBIgNxHgLECA2EOMtQIDYQIx/I8Af8WYOaecAAAAASUVORK5CYII="
+        title="Pattern 6" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div>
+    <div draggable="true" style="display: inline-block;"><img
+        src="data:image/png;base64,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"
+        title="Pattern 7" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div>
+    <div draggable="true" style="display: inline-block;"><img
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABACAYAAADlNHIOAAAAAXNSR0IArs4c6QAAAVtJREFUeF7t20EOwjAUxNDk/odu1TO8L0VRzd5DsQuLAHvh41nrwQnC91qbBg7DfPEFsIIFMH9MF4AV2kABzB/TBWCFNlAA88d0AVihDRTA/DFdAFZoAwUwf0wXgBXaQAHMH9MFYIU2UADzx3QBWKENcAB7eqdvPw4vAN4D+oVQAQpgBvoIMn9MF4AV2kABzB/TBWCFNlAA88d0AVihDRTA/DFdAFZoAwUwf0wXgBXaQAHMH9MFYIU2cH2A21+A5TtP7wKcjVCAs/5XAQpw93+8tF/vADWIfAFQoOIFUIPIFwAFKl4ANYh8AVCg4gVQg8gXAAUqXgA1iHwBUKDiBVCDyB//dfTp43D09x1kkUOC9eI/vgATFmGjACBvAi3AhEXYKADIm0ALMGERNgoA8ibQAkxYhI0CgLwJtAATFmGjACBvAi3AhEXYKADIm0ALMGERNgoA8ibQvwd4AbzUgEFuvMEAAAAAAElFTkSuQmCC"
+        title="Pattern 8" style="width: 50px; height: 50px; margin: 5px; cursor: pointer;"></div>
+  </div>
+
+  <!-- Load the main module -->
+  <script type="module" src="main.js"></script>
+</body>
+
 </html>

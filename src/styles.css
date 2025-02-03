@@ -242,3 +242,23 @@ button {cursor:pointer;}
     background-color: #525252;
     color: #e2e2e2;
 }        
+.gene.actionRule {
+    border-radius: 10px 0px 0px 10px;
+    margin-right: 0px;
+    border-right: none;
+}
+.gene.tmp_move {
+    border-radius: 0px 10px 10px 0px;
+}
+.gene {white-space: nowrap;}
+.gene.actionRule.energy {
+    background-color: #16c60c;
+    color: #fff;
+  }
+  .gene.actionRule.cell {
+    background-color: #e81224;
+    color: #fff;
+  } 
+  .gene.action.move {
+    background-color: white;
+  }
