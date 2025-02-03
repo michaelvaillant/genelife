@@ -13,8 +13,8 @@ export function generateRandomGenome() {
     //     [5], [6], [7], [8],
     // ];
 
-    // 25% chance => random action rules
-    if (Math.random() < 0.05) {
+    // 10% chance => random action rules
+    if (Math.random() < 0.10) {
         // Generate random actionRules for each of the 8 slots
         // 50% chance to be empty, 50% chance to pick [5..8]
         actionRules = Array.from({ length: 8 }, () => {
@@ -53,20 +53,26 @@ export function generateRandomGenome() {
     }
 
     // "Movers" (random chance 10%)
-    if (Math.random() < 0.1) {
-        let numInstructions = Math.floor(Math.random() * 1 + 3);
+    if (Math.random() < 0.8) {
+        let numInstructions = Math.floor(Math.random() * 1 + 2);
         for (let i = 0; i < numInstructions; i++) {
             moveRules.push(directions[Math.floor(Math.random() * directions.length)]);
         }
         mover = true;
     }
 
-    // Example: random survival rules
-    for (let i = 0; i < Math.floor(Math.random() * 4 + 1); i++) {
-        survivalRules.push(Math.floor(Math.random() * 4 + 1));
+    // Survival rules
+    for (let i = 0; i < Math.floor(Math.random() * 3 + 4); i++) {       // 1 to 3
+        // 2 to 4 il you want structures with voids and labyrinths
+        survivalRules.push(Math.floor(Math.random() * 3 + 2));          // 2 to 4
     }
 
-    // Example: birth rule
+    // Birth rules
+    // for (let i = 0; i < Math.floor(Math.random() * 3 ); i++) {       // 1 to 3
+    //     birthRules.push(Math.floor(Math.random() * 3 + 1));          // 2 to 4
+    // }
+
+        
     birthRules.push([3, 4, 5][Math.floor(Math.random() * 4)]);
 
     // Return a new genome with everything
@@ -138,8 +144,10 @@ export function moveCell(game, x, y, targetX, targetY, cell, nextGrid) {
 
     // Absorb leftover energy from target cell
     energy += targetCell.energyLeft;
+    targetCell.energyLeft = 0;  
     // Cap Max energy
     if (energy > game.energyCellMax) energy = game.energyCellMax;
+    
     // Now update the cell's moveRules in the genome
     // moveRules.push(moveRules.shift());
     cell.genome.moveRules = moveRules;
@@ -227,8 +235,10 @@ export function crossoverMoveRules(rules1, rules2, energy1, energy2) {
     // 2) Crossover with optional mutation
     const childRules = [];
     const maxLength = Math.max(filtered1.length, filtered2.length);
+    const minLength = Math.min(filtered1.length, filtered2.length);
+    const childLength = Math.floor(Math.random() * (maxLength - minLength + 1) )+ minLength
 
-    for (let i = 0; i < maxLength; i++) {
+    for (let i = 0; i < childLength; i++) {
         let instruction = null;
         const instr1 = filtered1[i] || null;
         const instr2 = filtered2[i] || null;
@@ -240,7 +250,7 @@ export function crossoverMoveRules(rules1, rules2, energy1, energy2) {
             // Possibly add BOTH instructions if both exist
             if (instr1 !== null && instr2 !== null) {
                 childRules.push(instr1);
-                if (childRules.length < maxLength) {
+                if (childRules.length < childLength) {
                     childRules.push(instr2);
                 }
             } else {

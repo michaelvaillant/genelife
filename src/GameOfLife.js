@@ -50,12 +50,14 @@ export class GameOfLife {
     
     // Meta-Parameters
     // 10 / 10 / 5 / 200   => black static labyrinth.    
-    // 10 /  2 / 5 / 200   => black static labyrinth.
-    // 5 / 2 / 1 / 200    => Equilibruum, but no reversal
+    // 10 /  2 / 5 / 200   => black static labyrinth.    
+    // 5 / 2 / 5 / 200    => Equilibruum, but no reversal
+    // 5 / 2 / 2 / 10
+    // 2 / 2 / 2 / 10     => Orange anarchism
 
-    this.energyMoveCost = 5;     // Cost in Energy for a move (genome.js)
-    this.energyDieRatio = 2;      // Energy left by a dead cell (simulation.js)
-    this.energyChildRatio = 1;    // Energy left to the child when born (simulation.js)
+    this.energyMoveCost = 0.0;     // Cost in Energy for a move (genome.js)
+    this.energyDieRatio = 10;      // Energy left by a dead cell. Divide the energy issued from the original cell by this ratio. (simulation.js)
+    this.energyChildRatio = 2.0;    // Fraction of Energy from the parents left to the child when born (simulation.js) (/!\ > 2 !)
     this.energyCellMax = 200;     // Cap Max energy of a Cell (genome.js)
 
     // A good usage of Reactions rules can create cooperation.

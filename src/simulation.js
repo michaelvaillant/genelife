@@ -311,7 +311,9 @@ export function handleSurvivalAndReproduction(game) {
                     const parent1 = compatible[0];
                     const parent2 = compatible[1];
                     const childGenome = game.crossoverGenomes(parent1.genome, parent2.genome, parent1.energy, parent2.energy);
+                    
                     let childEnergy = (parent1.energy + parent2.energy) / game.energyChildRatio;
+                    // console.log(childEnergy)
                     game.nextGrid[y][x] = {
                         state: 1,
                         genome: childGenome,
