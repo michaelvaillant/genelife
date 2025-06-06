@@ -300,6 +300,9 @@ export function handleSurvivalAndReproduction(game) {
             const neighbors = game.countAliveNeighbors(game.currentGrid, x, y);
             if (cell.state === 1 && cell.genome) {
                 if (cell.genome.birth[0]) cell.age += 1;
+                
+                //if (cell.energy >= energyCellMax) cell.energy = energyCellMax;
+
                 const survivalRules = cell.genome.survivalRules;
                 if (!survivalRules.includes(neighbors) && !cell.genome.birth.includes(neighbors)) {
                     game.cellDies(game.nextGrid, x, y, cell.energy / game.energyDieRatio);

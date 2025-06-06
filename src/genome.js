@@ -1,4 +1,5 @@
 // genome.js
+import { config } from "./config.js";
 
 export function generateRandomGenome() {
     const directions = [1, 2, 3, 4];
@@ -13,8 +14,8 @@ export function generateRandomGenome() {
     //     [5], [6], [7], [8],
     // ];
 
-    // 10% chance => random action rules
-    if (Math.random() < 0.10) {
+    // 🔄 10% chance => random action rules
+    if (Math.random() < config.genetics.actionMutationRate) {
         // Generate random actionRules for each of the 8 slots
         // 50% chance to be empty, 50% chance to pick [5..8]
         actionRules = Array.from({ length: 8 }, () => {
@@ -36,8 +37,8 @@ export function generateRandomGenome() {
     // Possibly track whether this is a “mover”
     let mover = false;
 
-    // "Pac-Man" type (random chance 5%)
-    if (Math.random() < 0.05) {
+    // "Pac-Man" type 
+    if (Math.random() < config.genetics.pacmanProbability) {
         survivalRules = [0, 1, 2, 3, 4, 5, 6, 7];
         moveRules = Array(24).fill().map(
             () => directions[Math.floor(Math.random() * directions.length)]
@@ -53,7 +54,7 @@ export function generateRandomGenome() {
     }
 
     // "Movers" (random chance 10%)
-    if (Math.random() < 0.8) {
+    if (Math.random() < config.genetics.moverProbability) {
         let numInstructions = Math.floor(Math.random() * 1 + 2);
         for (let i = 0; i < numInstructions; i++) {
             moveRules.push(directions[Math.floor(Math.random() * directions.length)]);
@@ -64,7 +65,8 @@ export function generateRandomGenome() {
     // Survival rules
     for (let i = 0; i < Math.floor(Math.random() * 3 + 4); i++) {       // 1 to 3
         // 2 to 4 il you want structures with voids and labyrinths
-        survivalRules.push(Math.floor(Math.random() * 3 + 2));          // 2 to 4
+        // survivalRules.push(Math.floor(Math.random() * 3 + 2));          // 2 to 4
+        survivalRules.push(Math.floor(Math.random() * (config.genetics.survivalRuleRange[1] - config.genetics.survivalRuleRange[0] + 1)) + config.genetics.survivalRuleRange[0]);
     }
 
     // Birth rules
@@ -73,7 +75,9 @@ export function generateRandomGenome() {
     // }
 
         
-    birthRules.push([3, 4, 5][Math.floor(Math.random() * 4)]);
+    // birthRules.push([3, 4, 5][Math.floor(Math.random() * 4)]);
+    birthRules.push(config.genetics.birthRuleOptions[Math.floor(Math.random() * config.genetics.birthRuleOptions.length)]);
+
 
     // Return a new genome with everything
     return {
@@ -133,7 +137,7 @@ export function moveCell(game, x, y, targetX, targetY, cell, nextGrid) {
         // If executedMove is 0 or null, neither re-append nor shift
     }
 
-
+    
     if (cell.genome.birth.length > 0) energy -= game.energyMoveCost; // e.g. some cost for moving and birth-capable” genome
 
 
@@ -234,8 +238,8 @@ export function crossoverMoveRules(rules1, rules2, energy1, energy2) {
 
     // 2) Crossover with optional mutation
     const childRules = [];
-    const maxLength = Math.max(filtered1.length, filtered2.length);
-    const minLength = Math.min(filtered1.length, filtered2.length);
+    const maxLength = config.genetics.genomeLengthRange[0]; // Math.max(filtered1.length, filtered2.length);
+    const minLength = config.genetics.genomeLengthRange[1]; // Math.min(filtered1.length, filtered2.length);
     const childLength = Math.floor(Math.random() * (maxLength - minLength + 1) )+ minLength
 
     for (let i = 0; i < childLength; i++) {
@@ -243,8 +247,8 @@ export function crossoverMoveRules(rules1, rules2, energy1, energy2) {
         const instr1 = filtered1[i] || null;
         const instr2 = filtered2[i] || null;
 
-        const lowEnergy = (energy1 < 10 || energy2 < 10);
-        const mutation = lowEnergy && Math.random() < 0.5;
+        const lowEnergy = (energy1 < config.genetics.mutationThresholdEnergy || energy2 < config.genetics.mutationThresholdEnergy);
+        const mutation = lowEnergy && Math.random() < config.genetics.mutationProbability;
 
         if (mutation) {
             // Possibly add BOTH instructions if both exist
@@ -308,7 +312,7 @@ export function crossoverActionRules(a1, a2) {
             //   If we copy, there's a 5% chance we "forget" it => empty anyway
             if (Math.random() < 0.5) {
                 // We adopt arr1, but 5% chance we forget
-                if (Math.random() < 0.05) {
+                if (Math.random() < config.genetics.forgotGenomeProb) {
                     child[i] = [];
                 } else {
                     child[i] = [...arr1];
@@ -324,7 +328,7 @@ export function crossoverActionRules(a1, a2) {
             //   If we copy, there's a 5% chance we "forget" it => empty anyway
             if (Math.random() < 0.5) {
                 // We adopt arr2, but 5% chance we forget
-                if (Math.random() < 0.05) {
+                if (Math.random() < config.genetics.forgotGenomeProb) {
                     child[i] = [];
                 } else {
                     child[i] = [...arr2];

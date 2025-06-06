@@ -1,5 +1,7 @@
 // GameOfLife.js
 import { createGrid, copyGrid, deepCloneCell, createEmptyCell, initializeGrid, addCrossObstacles, drawGrid } from './grid.js';
+import { config } from "./config.js"; 
+
 import * as simulation from './simulation.js';
 import * as genome from './genome.js';
 import * as graph from './graph.js';
@@ -8,8 +10,10 @@ import * as modal from './modal.js';
 import * as select from './selectionUtils.js';
 import * as patterns from './patterns.js';
 
+// export const game = new GameOfLife();
+
 export class GameOfLife {
-  constructor(config = {}) {
+  constructor() {
     // Canvas elements
     this.gameCanvas = document.getElementById('gameCanvas');
     this.ctx = this.gameCanvas.getContext('2d');
@@ -38,10 +42,10 @@ export class GameOfLife {
     this.drawGrid = drawGrid;
 
     // Configuration
-    this.gridSize = config.gridSize || 128;
+    this.gridSize = config.gridSize;
     this.cellSize = this.gameCanvas.width / this.gridSize;
-    this.speed = config.speed || 100;
-    this.seed = config.seed || Math.floor(Math.random() * 100000);
+    this.speed = config.speed;
+    this.seed = config.seed;
     this.isPaused = false;
     this.generationCount = 0;
     this.maxGenerations = 500;
@@ -55,11 +59,37 @@ export class GameOfLife {
     // 5 / 2 / 2 / 10
     // 2 / 2 / 2 / 10     => Orange anarchism
 
-    this.energyMoveCost = 0.0;     // Cost in Energy for a move (genome.js)
-    this.energyDieRatio = 10;      // Energy left by a dead cell. Divide the energy issued from the original cell by this ratio. (simulation.js)
-    this.energyChildRatio = 2.0;    // Fraction of Energy from the parents left to the child when born (simulation.js) (/!\ > 2 !)
-    this.energyCellMax = 200;     // Cap Max energy of a Cell (genome.js)
+    // this.energyMoveCost = 0.0;     // Cost in Energy for a move (genome.js)
+    // this.energyDieRatio = 10;      // Energy left by a dead cell. Divide the energy issued from the original cell by this ratio. (simulation.js)
+    // this.energyChildRatio = 2.0;    // Fraction of Energy from the parents left to the child when born (simulation.js) (/!\ > 2 !)
+    // this.energyCellMax = 200;     // Cap Max energy of a Cell (genome.js)
 
+    this.energyMoveCost = config.energyMoveCost;
+    this.energyDieRatio = config.energyDieRatio;
+    this.energyChildRatio = config.energyChildRatio;
+    this.energyCellMax = config.energyCellMax;
+    this.genetics = config.genetics;
+    console.log(config.energyMoveCost);
+    // // genome.js
+    // this.genetics = {
+    //   actionMutationRate: 0.10,  // % chance qu'une cellule ait des actions aléatoires
+    //   pacmanProbability: 0.05,   // % chance qu'une cellule soit un Pac-Man
+    //   moverProbability: 0.80,    // % chance qu'une cellule ait des règles de mouvement
+    //   survivalRuleRange: [2, 4], // Intervalle pour générer des règles de survie
+    //   birthRuleOptions: [3, 4, 5], // Liste des règles de naissance possibles
+    
+    //   mutationThresholdEnergy: 10,  // Énergie en-dessous de laquelle la mutation est favorisée
+    //   mutationProbability: 0.5,      // Chance de mutation dans un croisement
+    //   genomeLengthRange: [1, 5],    // Longueur min/max du génome d'un enfant
+      
+    // };
+
+    // Genetic
+    // this.mutationRate = 0.01;       // Probabilité de mutation
+    // this.crossoverMethod = "uniform";  // Méthode de croisement
+    // this.selectionPressure = 0.5;    // Facteur de pression évolutive
+
+            
     // A good usage of Reactions rules can create cooperation.
 
     // Grids
@@ -123,7 +153,7 @@ export class GameOfLife {
     Math.seedrandom(this.seed);
     this.updateControls();
     initializeGrid(this.currentGrid);
-    addCrossObstacles(this.currentGrid, this.gridSize);
+    // addCrossObstacles(this.currentGrid, this.gridSize);
     drawGrid(this.currentGrid, this.ctx, this.cellSize, this.gameCanvas.width, this.gameCanvas.height);
     this.generationCount = 0;
     setTimeout(() => this.update(), this.speed);
