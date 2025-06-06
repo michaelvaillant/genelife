@@ -4,7 +4,7 @@
 
 This project is an advanced implementation of Conway's "Game of Life," enhanced with a genome system that adds evolutionary dynamics and movement to cells. It includes an interactive visualization using HTML5 Canvas and offers a simulation system with multiple user controls.
 
-Unlike traditional implementations where the grid determines the rules of reproduction and survival, here, the rules are embedded within the cells themselves. This fundamental shift enables genetic mutations, making the simulation much more flexible and adaptable. It includes an interactive visualization using HTML5 Canvas and offers a simulation system with multiple user controls.
+Unlike traditional implementations where the grid determines the rules of reproduction and survival, here, the rules are embedded within the cells themselves. This fundamental shift enables genetic mutations, making the simulation much more flexible and adaptable. It includes an interactive visualization using HTML5 Canvas and offers a simulation system with multiple controls.
 
 Try it: [genelife](https://www.u-sphere.com/projects/genelife/)
 
@@ -53,6 +53,13 @@ The genome of a cell consists of three main categories of rules:
 Cells with "Movement Rules" consume Energy. The introduction of Energy into the simulation (small green blocks) is crucial as it regulates movement and ensures that cells have resource constraints. Cells consume energy when moving and require an energy source to sustain their actions. Without energy, cells become immobile and may eventually die.
 Cells which does not have "Movement Rules" are 100% compatible with the way the Game of Life is working
 
+Useful Variables To Change the simulation parameters
+
+- energyMoveCost
+- energyDieRatio
+- energyChildRatio
+- energyCellMax
+
 *Technologies Used*
 
 -	HTML5 / CSS3: Structure and styling.
@@ -72,3 +79,4 @@ Project developed by Michael Vaillant.
 *License*
 This project is licensed under the MIT License. 
 
+Michael Vaillant
