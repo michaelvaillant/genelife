@@ -18,5 +18,5 @@ jobs:
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASS }}
           local-dir: './src/'
-          server-dir: '/var/www/clients/client1/web1/web/projects/genelife2/'
+          server-dir: '/'
           delete: false
