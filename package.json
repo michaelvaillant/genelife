@@ -1,0 +1,9 @@
+{
+  "name": "genelife",
+  "version": "1.0.0",
+  "description": "Game of Life simulation with genome system",
+  "private": true,
+  "scripts": {
+    "test": "echo \"No test suite defined\" && exit 0"
+  }
+}

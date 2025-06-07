@@ -8,6 +8,10 @@ Unlike traditional implementations where the grid determines the rules of reprod
 
 Try it: [genelife](https://www.u-sphere.com/projects/genelife/)
 
+The updated version of the demo is automatically deployed to
+[genelife2](https://www.u-sphere.com/projects/genelife2/) via the FTP
+workflow in `.github/workflows/deploy.yml`.
+
 *Features*
 -	Game of Life Simulation: Based on Conway's classic rules with evolutionary elements.
 -	Integrated Genome: Each cell can have genetic characteristics defining its survival, reproduction, and movement.
