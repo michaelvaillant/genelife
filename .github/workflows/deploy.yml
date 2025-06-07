@@ -1,0 +1,22 @@
+name: Déploiement FTP Genelife2
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+
+jobs:
+  ftp-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Déploiement FTP
+        uses: SamKirkland/FTP-Deploy-Action@4.4.0
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASS }}
+          local_dir: 'src'
+          remote_dir: '/var/www/clients/client1/web1/web/projects/genelife2'
+          delete: false
