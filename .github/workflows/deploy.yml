@@ -2,7 +2,7 @@ name: Déploiement FTP Genelife2
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
     paths:
       - 'src/**'
 
